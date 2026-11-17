@@ -39,6 +39,21 @@ type Organization = {
   role: string
 }
 
+type Client = {
+  id: string
+  organization_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  siret: string | null
+  vat_number: string | null
+  address: string | null
+  postal_code: string | null
+  city: string | null
+  country: string
+  created_at: string
+}
+
 type AuthStatus =
   | 'checking'
   | 'authenticated'
@@ -114,6 +129,16 @@ function App() {
   const [newOrganizationName, setNewOrganizationName] = useState('')
   const [isCreatingOrganization, setIsCreatingOrganization] = useState(false)
   const [organizationRefresh, setOrganizationRefresh] = useState(0)
+
+  // Gestion des clients
+  const [clients, setClients] = useState<Client[]>([])
+  const [isLoadingClients, setIsLoadingClients] = useState(false)
+  const [clientError, setClientError] = useState<string | null>(null)
+  const [isCreateClientOpen, setIsCreateClientOpen] = useState(false)
+  const [newClientName, setNewClientName] = useState('')
+  const [newClientEmail, setNewClientEmail] = useState('')
+  const [newClientPhone, setNewClientPhone] = useState('')
+  const [isCreatingClient, setIsCreatingClient] = useState(false)
 
   async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -308,6 +333,54 @@ function App() {
     }
   }, [authStatus, user?.id, organizationRefresh])
 
+  // Chargement des clients de l'entreprise sélectionnée
+  useEffect(() => {
+    if (!supabase || authStatus !== 'authenticated' || !user || !activeOrganizationId) {
+      setClients([])
+      setIsLoadingClients(false)
+      return
+    }
+
+    let isMounted = true
+
+    async function loadClients() {
+      if (!supabase) return
+
+      setIsLoadingClients(true)
+      setClientError(null)
+
+      try {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('organization_id', activeOrganizationId)
+          .order('name', { ascending: true })
+
+        if (error) throw error
+
+        if (isMounted) {
+          setClients((data ?? []) as Client[])
+        }
+      } catch (error) {
+        console.error('Erreur de chargement des clients :', error)
+
+        if (isMounted) {
+          setClientError('Impossible de charger les clients. Réessayez.')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingClients(false)
+        }
+      }
+    }
+
+    void loadClients()
+
+    return () => {
+      isMounted = false
+    }
+  }, [authStatus, user?.id, activeOrganizationId])
+
   const filteredInvoices = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('fr')
     if (!query) return invoices
@@ -318,6 +391,51 @@ function App() {
         .includes(query),
     )
   }, [invoices, search])
+
+  async function handleCreateClient(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!supabase || !activeOrganizationId || !newClientName.trim()) {
+      setClientError('Sélectionnez une entreprise et saisissez un nom de client.')
+      return
+    }
+
+    setIsCreatingClient(true)
+    setClientError(null)
+
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert({
+          organization_id: activeOrganizationId,
+          name: newClientName.trim(),
+          email: newClientEmail.trim() || null,
+          phone: newClientPhone.trim() || null,
+        })
+        .select('*')
+        .single()
+
+      if (error) throw error
+
+      setClients((current) =>
+        [...current, data as Client].sort((a, b) =>
+          a.name.localeCompare(b.name, 'fr')
+        )
+      )
+
+      setNewClientName('')
+      setNewClientEmail('')
+      setNewClientPhone('')
+      setIsCreateClientOpen(false)
+    } catch (error) {
+      console.error('Erreur de création du client :', error)
+      setClientError(
+        'Impossible de créer le client. Vérifiez votre connexion et réessayez.',
+      )
+    } finally {
+      setIsCreatingClient(false)
+    }
+  }
 
   function handleCreateInvoice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -692,6 +810,7 @@ function App() {
               <Icon size={18} aria-hidden="true" />
               <span>{label}</span>
               {label === 'Factures' && <span className="nav-count">{invoices.length}</span>}
+              {label === 'Clients' && <span className="nav-count">{clients.length}</span>}
             </button>
           ))}
 
@@ -748,145 +867,213 @@ function App() {
         </header>
 
         <div className="page-content">
-          <section className="welcome-row">
-            <div>
-              <p className="eyebrow">MARDI 18 MARS 2025</p>
-              <h1>Bonjour Camille <span aria-hidden="true">☀️</span></h1>
-              <p className="welcome-subtitle">Voici le résumé de votre activité aujourd’hui.</p>
-            </div>
-            <button className="primary-button" onClick={() => setIsCreateOpen(true)} type="button">
-              <Plus size={18} />
-              Créer une facture
-            </button>
-          </section>
+          {activePage === 'Clients' ? (
+            <section className="content-card">
+              <div className="card-header">
+                <div>
+                  <h2>Mes clients</h2>
+                  <p>Les clients enregistrés pour cette entreprise.</p>
+                </div>
 
-          <div>
-            <button
-              className="secondary-button"
-              disabled={isTestingSupabase}
-              onClick={handleSupabaseTest}
-              type="button"
-            >
-              {isTestingSupabase ? 'Test en cours…' : 'Tester Supabase'}
-            </button>
-
-            {supabaseTestResult && (
-              <p role="status" aria-live="polite">
-                {supabaseTestResult.message}
-              </p>
-            )}
-          </div>
-
-          <section className="stats-grid" aria-label="Indicateurs financiers">
-            <article className="stat-card">
-              <div className="stat-heading">
-                <span>Chiffre d’affaires encaissé</span>
-                <span className="stat-icon emerald"><ArrowDownRight size={18} /></span>
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={!activeOrganizationId}
+                  onClick={() => {
+                    setClientError(null)
+                    setIsCreateClientOpen(true)
+                  }}
+                >
+                  <Plus size={18} />
+                  Ajouter un client
+                </button>
               </div>
-              <strong className="stat-value">12 480 €</strong>
-              <p className="stat-foot"><span className="positive">+12,8 %</span> par rapport au mois dernier</p>
-            </article>
 
-            <article className="stat-card">
-              <div className="stat-heading">
-                <span>En attente de paiement</span>
-                <span className="stat-icon amber"><Clock3 size={18} /></span>
+              {clientError && (
+                <p role="alert">{clientError}</p>
+              )}
+
+              {isLoadingClients ? (
+                <p>Chargement des clients…</p>
+              ) : clients.length === 0 ? (
+                <p className="empty-row">
+                  Aucun client enregistré pour cette entreprise.
+                </p>
+              ) : (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>NOM</th>
+                        <th>EMAIL</th>
+                        <th>TÉLÉPHONE</th>
+                        <th>VILLE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clients.map((client) => (
+                        <tr key={client.id}>
+                          <td>{client.name}</td>
+                          <td>{client.email ?? '—'}</td>
+                          <td>{client.phone ?? '—'}</td>
+                          <td>{client.city ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="table-footer">
+                <span>
+                  {clients.length} client{clients.length > 1 ? 's' : ''}
+                </span>
+                <span>Supabase</span>
               </div>
-              <strong className="stat-value">3 840 €</strong>
-              <p className="stat-foot">4 factures à suivre</p>
-            </article>
+            </section>
+          ) : (
+            <>
+              <section className="welcome-row">
+                <div>
+                  <p className="eyebrow">MARDI 18 MARS 2025</p>
+                  <h1>Bonjour Camille <span aria-hidden="true">☀️</span></h1>
+                  <p className="welcome-subtitle">Voici le résumé de votre activité aujourd’hui.</p>
+                </div>
+                <button className="primary-button" onClick={() => setIsCreateOpen(true)} type="button">
+                  <Plus size={18} />
+                  Créer une facture
+                </button>
+              </section>
 
-            <article className="stat-card">
-              <div className="stat-heading">
-                <span>Factures émises</span>
-                <span className="stat-icon navy"><FileText size={18} /></span>
-              </div>
-              <strong className="stat-value">18</strong>
-              <p className="stat-foot">Ce mois-ci</p>
-            </article>
-
-            <article className="stat-card">
-              <div className="stat-heading">
-                <span>Clients actifs</span>
-                <span className="stat-icon violet"><Users size={18} /></span>
-              </div>
-              <strong className="stat-value">24</strong>
-              <p className="stat-foot">2 nouveaux ce mois-ci</p>
-            </article>
-          </section>
-
-          <section className="content-card">
-            <div className="card-header">
               <div>
-                <h2>Factures récentes</h2>
-                <p>Suivez les dernières factures de votre entreprise.</p>
+                <button
+                  className="secondary-button"
+                  disabled={isTestingSupabase}
+                  onClick={handleSupabaseTest}
+                  type="button"
+                >
+                  {isTestingSupabase ? 'Test en cours…' : 'Tester Supabase'}
+                </button>
+
+                {supabaseTestResult && (
+                  <p role="status" aria-live="polite">
+                    {supabaseTestResult.message}
+                  </p>
+                )}
               </div>
-              <button className="text-link" type="button" onClick={() => setActivePage('Factures')}>
-                Toutes les factures <ArrowRight size={15} />
-              </button>
-            </div>
 
-            <div className="table-toolbar">
-              <label className="search-field">
-                <Search size={17} aria-hidden="true" />
-                <input
-                  aria-label="Rechercher une facture ou un client"
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Rechercher une facture ou un client…"
-                  type="search"
-                  value={search}
-                />
-              </label>
-              <button className="filter-button" type="button">
-                Toutes les dates <ChevronDown size={15} />
-              </button>
-            </div>
+              <section className="stats-grid" aria-label="Indicateurs financiers">
+                <article className="stat-card">
+                  <div className="stat-heading">
+                    <span>Chiffre d’affaires encaissé</span>
+                    <span className="stat-icon emerald"><ArrowDownRight size={18} /></span>
+                  </div>
+                  <strong className="stat-value">12 480 €</strong>
+                  <p className="stat-foot"><span className="positive">+12,8 %</span> par rapport au mois dernier</p>
+                </article>
 
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>NUMÉRO</th>
-                    <th>CLIENT</th>
-                    <th>DATE D’ÉMISSION</th>
-                    <th>MONTANT TTC</th>
-                    <th>STATUT</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredInvoices.map((invoice) => (
-                    <tr key={invoice.number}>
-                      <td className="invoice-number">{invoice.number}</td>
-                      <td>{invoice.customer}</td>
-                      <td className="muted-cell">{invoice.date}</td>
-                      <td className="amount-cell">{formatCurrency(invoice.amount)}</td>
-                      <td>
-                        <span className={`status-badge ${invoice.status.toLowerCase().replace(' ', '-')}`}>
-                          {invoice.status === 'Payée' && <Check size={12} />}
-                          {invoice.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                <article className="stat-card">
+                  <div className="stat-heading">
+                    <span>En attente de paiement</span>
+                    <span className="stat-icon amber"><Clock3 size={18} /></span>
+                  </div>
+                  <strong className="stat-value">3 840 €</strong>
+                  <p className="stat-foot">4 factures à suivre</p>
+                </article>
 
-                  {filteredInvoices.length === 0 && (
-                    <tr>
-                      <td className="empty-row" colSpan={5}>
-                        Aucune facture ne correspond à votre recherche.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                <article className="stat-card">
+                  <div className="stat-heading">
+                    <span>Factures émises</span>
+                    <span className="stat-icon navy"><FileText size={18} /></span>
+                  </div>
+                  <strong className="stat-value">18</strong>
+                  <p className="stat-foot">Ce mois-ci</p>
+                </article>
 
-            <div className="table-footer">
-              <span>
-                {filteredInvoices.length} facture{filteredInvoices.length > 1 ? 's' : ''} affichée{filteredInvoices.length > 1 ? 's' : ''}
-              </span>
-              <span className="demo-note">Données de démonstration</span>
-            </div>
-          </section>
+                <article className="stat-card">
+                  <div className="stat-heading">
+                    <span>Clients actifs</span>
+                    <span className="stat-icon violet"><Users size={18} /></span>
+                  </div>
+                  <strong className="stat-value">{clients.length}</strong>
+                  <p className="stat-foot">Clients enregistrés</p>
+                </article>
+              </section>
+
+              <section className="content-card">
+                <div className="card-header">
+                  <div>
+                    <h2>Factures récentes</h2>
+                    <p>Suivez les dernières factures de votre entreprise.</p>
+                  </div>
+                  <button className="text-link" type="button" onClick={() => setActivePage('Factures')}>
+                    Toutes les factures <ArrowRight size={15} />
+                  </button>
+                </div>
+
+                <div className="table-toolbar">
+                  <label className="search-field">
+                    <Search size={17} aria-hidden="true" />
+                    <input
+                      aria-label="Rechercher une facture ou un client"
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Rechercher une facture ou un client…"
+                      type="search"
+                      value={search}
+                    />
+                  </label>
+                  <button className="filter-button" type="button">
+                    Toutes les dates <ChevronDown size={15} />
+                  </button>
+                </div>
+
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>NUMÉRO</th>
+                        <th>CLIENT</th>
+                        <th>DATE D’ÉMISSION</th>
+                        <th>MONTANT TTC</th>
+                        <th>STATUT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredInvoices.map((invoice) => (
+                        <tr key={invoice.number}>
+                          <td className="invoice-number">{invoice.number}</td>
+                          <td>{invoice.customer}</td>
+                          <td className="muted-cell">{invoice.date}</td>
+                          <td className="amount-cell">{formatCurrency(invoice.amount)}</td>
+                          <td>
+                            <span className={`status-badge ${invoice.status.toLowerCase().replace(' ', '-')}`}>
+                              {invoice.status === 'Payée' && <Check size={12} />}
+                              {invoice.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+
+                      {filteredInvoices.length === 0 && (
+                        <tr>
+                          <td className="empty-row" colSpan={5}>
+                            Aucune facture ne correspond à votre recherche.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="table-footer">
+                  <span>
+                    {filteredInvoices.length} facture{filteredInvoices.length > 1 ? 's' : ''} affichée{filteredInvoices.length > 1 ? 's' : ''}
+                  </span>
+                  <span className="demo-note">Données de démonstration</span>
+                </div>
+              </section>
+            </>
+          )}
 
           <footer className="page-footer">
             <span>© 2025 FacturPro</span>
@@ -964,6 +1151,102 @@ function App() {
                 >
                   <Plus size={17} />
                   {isCreatingOrganization ? 'Création…' : 'Créer l’entreprise'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {/* Fenêtre de création de client */}
+      {isCreateClientOpen && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsCreateClientOpen(false)
+            }
+          }}
+        >
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="client-modal-title"
+          >
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">ESPACE CLIENTS</p>
+                <h2 id="client-modal-title">Ajouter un client</h2>
+              </div>
+
+              <button
+                className="plain-icon-button"
+                type="button"
+                aria-label="Fermer"
+                onClick={() => setIsCreateClientOpen(false)}
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <p className="modal-description">
+              Enregistrez les coordonnées de votre nouveau client.
+            </p>
+
+            <form className="invoice-form" onSubmit={handleCreateClient}>
+              <label>
+                Nom du client
+                <input
+                  autoFocus
+                  required
+                  maxLength={200}
+                  value={newClientName}
+                  onChange={(event) => setNewClientName(event.target.value)}
+                  placeholder="Ex. Société Martin"
+                />
+              </label>
+
+              <label>
+                Adresse e-mail
+                <input
+                  type="email"
+                  value={newClientEmail}
+                  onChange={(event) => setNewClientEmail(event.target.value)}
+                  placeholder="contact@entreprise.fr"
+                />
+              </label>
+
+              <label>
+                Téléphone
+                <input
+                  type="tel"
+                  value={newClientPhone}
+                  onChange={(event) => setNewClientPhone(event.target.value)}
+                  placeholder="06 00 00 00 00"
+                />
+              </label>
+
+              {clientError && (
+                <p role="alert">{clientError}</p>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => setIsCreateClientOpen(false)}
+                >
+                  Annuler
+                </button>
+
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={isCreatingClient || !newClientName.trim()}
+                >
+                  <Plus size={17} />
+                  {isCreatingClient ? 'Enregistrement…' : 'Enregistrer le client'}
                 </button>
               </div>
             </form>
