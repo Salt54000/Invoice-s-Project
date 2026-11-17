@@ -31,7 +31,11 @@ type Invoice = {
   amount: number
   status: InvoiceStatus
 }
-
+type Organization = {
+  id: string
+  name: string
+  role: string
+}
 type AuthStatus =
   | 'checking'
   | 'authenticated'
@@ -96,7 +100,49 @@ function App() {
   const [password, setPassword] = useState('')
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [organizations, setOrganizations] = useState<Organization[]>([])
+const [activeOrganizationId, setActiveOrganizationId] = useState('')
+const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
+const [organizationError, setOrganizationError] = useState<string | null>(null)
+const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false)
+const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false)
+const [newOrganizationName, setNewOrganizationName] = useState('')
+const [isCreatingOrganization, setIsCreatingOrganization] = useState(false)
+const [organizationRefresh, setOrganizationRefresh] = useState(0)
+async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault()
 
+  const name = newOrganizationName.trim()
+
+  if (!name || !supabase) return
+
+  setIsCreatingOrganization(true)
+  setOrganizationError(null)
+
+  try {
+    const { data, error } = await supabase.rpc('create_organization', {
+      p_name: name,
+    })
+
+    if (error) throw error
+
+    if (!data) {
+      throw new Error('Aucun identifiant retourné par Supabase.')
+    }
+
+    setActiveOrganizationId(data)
+    setNewOrganizationName('')
+    setIsCreateOrganizationOpen(false)
+    setOrganizationRefresh((current) => current + 1)
+  } catch (error) {
+    console.error('Erreur de création de l’entreprise :', error)
+    setOrganizationError(
+      'La création de l’entreprise a échoué. Vérifiez la configuration Supabase et réessayez.',
+    )
+  } finally {
+    setIsCreatingOrganization(false)
+  }
+}
   useEffect(() => {
     if (!supabase) {
       setUser(null)
@@ -106,7 +152,81 @@ function App() {
       )
       return
     }
+    useEffect(() => {
+  if (!supabase || authStatus !== 'authenticated' || !user) {
+    setOrganizations([])
+    setActiveOrganizationId('')
+    return
+  }
 
+  let isMounted = true
+
+  async function loadOrganizations() {
+    if (!supabase) return
+
+    setIsLoadingOrganizations(true)
+    setOrganizationError(null)
+
+    try {
+      const { data, error } = await supabase
+        .from('organization_members')
+        .select(`
+          organization_id,
+          role,
+          organizations!organization_members_organization_id_fkey (
+            id,
+            name
+          )
+        `)
+
+      if (error) throw error
+
+      const rows = (data ?? []) as unknown as Array<{
+        organization_id: string
+        role: string
+        organizations: {
+          id: string
+          name: string
+        } | null
+      }>
+
+      const loadedOrganizations = rows
+        .filter((row) => row.organizations !== null)
+        .map((row) => ({
+          id: row.organizations!.id,
+          name: row.organizations!.name,
+          role: row.role,
+        }))
+
+      if (!isMounted) return
+
+      setOrganizations(loadedOrganizations)
+
+      setActiveOrganizationId((current) => {
+        if (loadedOrganizations.some((org) => org.id === current)) {
+          return current
+        }
+
+        return loadedOrganizations[0]?.id ?? ''
+      })
+    } catch (error) {
+      if (!isMounted) return
+
+      console.error('Erreur de chargement des entreprises :', error)
+      setOrganizationError(
+        'Impossible de charger vos entreprises. Vérifiez votre connexion et réessayez.',
+      )
+    } finally {
+      if (isMounted) setIsLoadingOrganizations(false)
+    }
+  }
+
+  void loadOrganizations()
+
+  return () => {
+    isMounted = false
+  }
+}, [authStatus, user?.id, organizationRefresh])
     let isMounted = true
     let authEventVersion = 0
 
@@ -448,7 +568,99 @@ function App() {
           <span>Factur<span className="brand-accent">Pro</span></span>
         </a>
 
-        <button className="workspace-switcher" type="button">
+        <<div style={{ position: 'relative' }}>
+  <button
+    className="workspace-switcher"
+    type="button"
+    onClick={() => setIsWorkspaceMenuOpen((open) => !open)}
+    aria-expanded={isWorkspaceMenuOpen}
+  >
+    <span className="workspace-avatar">
+      {(organizations.find((org) => org.id === activeOrganizationId)?.name ?? 'FP')
+        .slice(0, 2)
+        .toUpperCase()}
+    </span>
+
+    <span className="workspace-copy">
+      <strong>
+        {isLoadingOrganizations
+          ? 'Chargement…'
+          : organizations.find((org) => org.id === activeOrganizationId)?.name ??
+            'Aucune entreprise'}
+      </strong>
+      <small>Compte professionnel</small>
+    </span>
+
+    <ChevronDown size={16} aria-hidden="true" />
+  </button>
+
+  {isWorkspaceMenuOpen && (
+    <div
+      style={{
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        zIndex: 20,
+        background: 'white',
+        border: '1px solid #e5e7eb',
+        borderRadius: 10,
+        padding: 8,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+      }}
+    >
+      {organizations.map((organization) => (
+        <button
+          key={organization.id}
+          type="button"
+          onClick={() => {
+            setActiveOrganizationId(organization.id)
+            setIsWorkspaceMenuOpen(false)
+          }}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            width: '100%',
+            padding: 10,
+            border: 0,
+            borderRadius: 6,
+            background:
+              activeOrganizationId === organization.id ? '#f1f5f9' : 'white',
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          <span>{organization.name}</span>
+          {activeOrganizationId === organization.id && <Check size={16} />}
+        </button>
+      ))}
+
+      <button
+        type="button"
+        onClick={() => {
+          setIsWorkspaceMenuOpen(false)
+          setIsCreateOrganizationOpen(true)
+        }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          width: '100%',
+          padding: 10,
+          marginTop: 6,
+          border: 0,
+          borderTop: '1px solid #e5e7eb',
+          background: 'white',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <Plus size={16} />
+        Ajouter une entreprise
+      </button>
+    </div>
+  )}
+</div>>
           <span className="workspace-avatar">AC</span>
           <span className="workspace-copy">
             <strong>Atelier Créatif</strong>
@@ -662,7 +874,80 @@ function App() {
           </footer>
         </div>
       </main>
+{isCreateOrganizationOpen && (
+  <div
+    className="modal-backdrop"
+    onMouseDown={(event) => {
+      if (event.target === event.currentTarget) {
+        setIsCreateOrganizationOpen(false)
+      }
+    }}
+  >
+    <section
+      className="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="organization-modal-title"
+    >
+      <div className="modal-heading">
+        <div>
+          <p className="eyebrow">ESPACE PROFESSIONNEL</p>
+          <h2 id="organization-modal-title">Ajouter une entreprise</h2>
+        </div>
 
+        <button
+          className="plain-icon-button"
+          onClick={() => setIsCreateOrganizationOpen(false)}
+          type="button"
+          aria-label="Fermer"
+        >
+          <X size={19} />
+        </button>
+      </div>
+
+      <p className="modal-description">
+        Créez un nouvel espace pour gérer une autre entreprise depuis votre compte.
+      </p>
+
+      <form className="invoice-form" onSubmit={handleCreateOrganization}>
+        <label>
+          Nom de l'entreprise
+          <input
+            autoFocus
+            required
+            maxLength={150}
+            value={newOrganizationName}
+            onChange={(event) => setNewOrganizationName(event.target.value)}
+            placeholder="Ex. Atelier Martin"
+          />
+        </label>
+
+        {organizationError && (
+          <p role="alert">{organizationError}</p>
+        )}
+
+        <div className="modal-actions">
+          <button
+            className="secondary-button"
+            onClick={() => setIsCreateOrganizationOpen(false)}
+            type="button"
+          >
+            Annuler
+          </button>
+
+          <button
+            className="primary-button"
+            disabled={isCreatingOrganization || !newOrganizationName.trim()}
+            type="submit"
+          >
+            <Plus size={17} />
+            {isCreatingOrganization ? 'Création…' : 'Créer l’entreprise'}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+)}
       {isCreateOpen && (
         <div className="modal-backdrop" onMouseDown={(event) => {
           if (event.target === event.currentTarget) setIsCreateOpen(false)
