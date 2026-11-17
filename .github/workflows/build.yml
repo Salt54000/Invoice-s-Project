@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build:
-    name: Vérification de compilation
+    name: Compiler et préparer GitHub Pages
     runs-on: ubuntu-latest
 
     steps:
@@ -34,3 +34,29 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
+
+      - name: Téléverser l’artefact GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    name: Déployer sur GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Configurer GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Déployer l’artefact
+        id: deployment
+        uses: actions/deploy-pages@v4
