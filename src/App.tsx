@@ -1,4 +1,5 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import type { User } from '@supabase/supabase-js'
 import {
   ArrowDownRight,
   ArrowRight,
@@ -16,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import {
+  supabase,
   testOrganizationsRead,
   type SupabaseReadTestResult,
 } from './lib/supabase'
@@ -29,6 +31,13 @@ type Invoice = {
   amount: number
   status: InvoiceStatus
 }
+
+type AuthStatus =
+  | 'checking'
+  | 'authenticated'
+  | 'unauthenticated'
+  | 'configuration-missing'
+  | 'verification-error'
 
 const initialInvoices: Invoice[] = [
   { number: 'FAC-2025-084', customer: 'Atelier Martin', date: '12 mars 2025', amount: 1440, status: 'Payée' },
@@ -49,6 +58,25 @@ const formatCurrency = (amount: number) =>
     currency: 'EUR',
   }).format(amount)
 
+function isNetworkError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? `${error.name} ${error.message}`.toLowerCase()
+      : String(error).toLowerCase()
+
+  return /failed to fetch|network|fetch failed|load failed|timeout|connection/.test(message)
+}
+
+function isMissingAuthSession(error: {
+  name?: string
+  code?: string
+}): boolean {
+  return (
+    error.name === 'AuthSessionMissingError' ||
+    error.code === 'session_not_found'
+  )
+}
+
 function App() {
   const [activePage, setActivePage] = useState('Vue d’ensemble')
   const [search, setSearch] = useState('')
@@ -59,6 +87,96 @@ function App() {
   const [supabaseTestResult, setSupabaseTestResult] =
     useState<SupabaseReadTestResult | null>(null)
   const [isTestingSupabase, setIsTestingSupabase] = useState(false)
+
+  const [user, setUser] = useState<User | null>(null)
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('checking')
+  const [authMessage, setAuthMessage] = useState<string | null>(null)
+  const [authCheckAttempt, setAuthCheckAttempt] = useState(0)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isSigningIn, setIsSigningIn] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+
+  useEffect(() => {
+    if (!supabase) {
+      setUser(null)
+      setAuthStatus('configuration-missing')
+      setAuthMessage(
+        'Configuration Supabase absente. Vérifiez les variables d’environnement.',
+      )
+      return
+    }
+
+    let isMounted = true
+    let authEventVersion = 0
+
+    setAuthStatus('checking')
+    setAuthMessage(null)
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return
+
+      // Toute notification reçue invalide une vérification getUser() plus ancienne.
+      authEventVersion += 1
+      setUser(session?.user ?? null)
+      setAuthStatus(session?.user ? 'authenticated' : 'unauthenticated')
+      setAuthMessage(null)
+    })
+
+    const versionAtCheckStart = authEventVersion
+
+    void supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (!isMounted || authEventVersion !== versionAtCheckStart) return
+
+        if (error) {
+          if (isMissingAuthSession(error)) {
+            setUser(null)
+            setAuthStatus('unauthenticated')
+            setAuthMessage(null)
+            return
+          }
+
+          setUser(null)
+          setAuthStatus('verification-error')
+          setAuthMessage(
+            isNetworkError(error)
+              ? 'Impossible de joindre Supabase pour vérifier la session. Vérifiez votre connexion et réessayez.'
+              : 'La session n’a pas pu être vérifiée auprès de Supabase. Réessayez.',
+          )
+          return
+        }
+
+        if (data.user) {
+          setUser(data.user)
+          setAuthStatus('authenticated')
+          setAuthMessage(null)
+        } else {
+          setUser(null)
+          setAuthStatus('unauthenticated')
+          setAuthMessage(null)
+        }
+      })
+      .catch((error: unknown) => {
+        if (!isMounted || authEventVersion !== versionAtCheckStart) return
+
+        setUser(null)
+        setAuthStatus('verification-error')
+        setAuthMessage(
+          isNetworkError(error)
+            ? 'Impossible de joindre Supabase pour vérifier la session. Vérifiez votre connexion et réessayez.'
+            : 'La session n’a pas pu être vérifiée auprès de Supabase. Réessayez.',
+        )
+      })
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [authCheckAttempt])
 
   const filteredInvoices = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('fr')
@@ -116,6 +234,212 @@ function App() {
     }
   }
 
+  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setAuthMessage(null)
+
+    if (!supabase) {
+      setAuthStatus('configuration-missing')
+      setAuthMessage(
+        'Configuration Supabase absente. Vérifiez les variables d’environnement.',
+      )
+      return
+    }
+
+    setIsSigningIn(true)
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+
+      if (error) {
+        const isInvalidCredentials =
+          /invalid login credentials|invalid_credentials/i.test(error.message)
+
+        setAuthMessage(
+          isInvalidCredentials
+            ? 'Adresse e-mail ou mot de passe incorrect.'
+            : 'Connexion impossible. Vérifiez votre configuration et réessayez.',
+        )
+        return
+      }
+
+      if (data.user) {
+        setUser(data.user)
+        setAuthStatus('authenticated')
+        setAuthMessage(null)
+        setPassword('')
+      } else {
+        setAuthStatus('verification-error')
+        setAuthMessage(
+          'Supabase n’a pas confirmé la session. Réessayez de vous connecter.',
+        )
+      }
+    } catch (error: unknown) {
+      setAuthMessage(
+        isNetworkError(error)
+          ? 'Impossible de joindre Supabase. Vérifiez votre connexion et réessayez.'
+          : 'Une erreur est survenue pendant la connexion. Réessayez.',
+      )
+    } finally {
+      setIsSigningIn(false)
+    }
+  }
+
+  async function handleSignOut() {
+    if (!supabase) {
+      setAuthStatus('configuration-missing')
+      setAuthMessage(
+        'Configuration Supabase absente. Vérifiez les variables d’environnement.',
+      )
+      return
+    }
+
+    setAuthMessage(null)
+    setIsSigningOut(true)
+
+    try {
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        setAuthMessage(
+          isNetworkError(error)
+            ? 'Impossible de joindre Supabase pour vous déconnecter. Réessayez.'
+            : 'La déconnexion a échoué. Réessayez.',
+        )
+        return
+      }
+
+      setUser(null)
+      setAuthStatus('unauthenticated')
+      setPassword('')
+    } catch (error: unknown) {
+      setAuthMessage(
+        isNetworkError(error)
+          ? 'Impossible de joindre Supabase pour vous déconnecter. Réessayez.'
+          : 'Une erreur est survenue pendant la déconnexion. Réessayez.',
+      )
+    } finally {
+      setIsSigningOut(false)
+    }
+  }
+
+  if (authStatus === 'checking') {
+    return (
+      <main
+        style={{
+          minHeight: '100vh',
+          display: 'grid',
+          placeItems: 'center',
+          padding: 24,
+        }}
+      >
+        <section className="modal" aria-live="polite">
+          <p className="eyebrow">FACTURPRO</p>
+          <h1>Vérification de la session…</h1>
+        </section>
+      </main>
+    )
+  }
+
+  if (authStatus !== 'authenticated' || !user) {
+    return (
+      <main
+        style={{
+          minHeight: '100vh',
+          display: 'grid',
+          placeItems: 'center',
+          padding: 24,
+        }}
+      >
+        <section className="modal" aria-labelledby="login-title">
+          <a className="brand" href="#" aria-label="FacturPro">
+            <span className="brand-mark">F</span>
+            <span>Factur<span className="brand-accent">Pro</span></span>
+          </a>
+
+          <div style={{ marginTop: 28 }}>
+            <p className="eyebrow">ESPACE PROFESSIONNEL</p>
+            <h1 id="login-title">Connexion</h1>
+            <p className="modal-description">
+              Connectez-vous pour accéder à votre espace FacturPro.
+            </p>
+          </div>
+
+          {authStatus === 'configuration-missing' && (
+            <p role="alert">
+              Configuration Supabase absente. Vérifiez les variables d’environnement.
+            </p>
+          )}
+
+          {authStatus === 'unauthenticated' && (
+            <p role="status">
+              Aucune session utilisateur active. Connectez-vous pour continuer.
+            </p>
+          )}
+
+          {authStatus === 'verification-error' && (
+            <div role="alert">
+              <p>
+                {authMessage ??
+                  'La vérification de la session a échoué. Cette erreur ne signifie pas que vous êtes déconnecté.'}
+              </p>
+              <button
+                className="secondary-button"
+                onClick={() => {
+                  setAuthMessage(null)
+                  setAuthStatus('checking')
+                  setAuthCheckAttempt((attempt) => attempt + 1)
+                }}
+                type="button"
+              >
+                Réessayer la vérification
+              </button>
+            </div>
+          )}
+
+          {authStatus !== 'verification-error' && authMessage && (
+            <p role="alert">{authMessage}</p>
+          )}
+
+          <form className="invoice-form" onSubmit={handleSignIn}>
+            <label>
+              Adresse e-mail
+              <input
+                autoComplete="email"
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                type="email"
+                value={email}
+              />
+            </label>
+
+            <label>
+              Mot de passe
+              <input
+                autoComplete="current-password"
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                type="password"
+                value={password}
+              />
+            </label>
+
+            <button
+              className="primary-button"
+              disabled={!supabase || isSigningIn}
+              type="submit"
+            >
+              {isSigningIn ? 'Connexion…' : 'Se connecter'}
+            </button>
+          </form>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -171,11 +495,16 @@ function App() {
           <div className="profile">
             <span className="profile-avatar">CL</span>
             <span className="profile-copy">
-              <strong>Camille Laurent</strong>
-              <small>Administratrice</small>
+              <strong>{user.email ?? 'Utilisateur FacturPro'}</strong>
+              <small>Connecté</small>
             </span>
-            <button className="plain-icon-button" type="button" aria-label="Options du profil">
-              <ChevronDown size={16} />
+            <button
+              className="secondary-button"
+              disabled={isSigningOut}
+              onClick={handleSignOut}
+              type="button"
+            >
+              {isSigningOut ? 'Déconnexion…' : 'Se déconnecter'}
             </button>
           </div>
         </div>
