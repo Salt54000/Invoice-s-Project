@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import {
@@ -31,11 +32,13 @@ type Invoice = {
   amount: number
   status: InvoiceStatus
 }
+
 type Organization = {
   id: string
   name: string
   role: string
 }
+
 type AuthStatus =
   | 'checking'
   | 'authenticated'
@@ -88,6 +91,7 @@ function App() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [customer, setCustomer] = useState('')
   const [amount, setAmount] = useState('')
+
   const [supabaseTestResult, setSupabaseTestResult] =
     useState<SupabaseReadTestResult | null>(null)
   const [isTestingSupabase, setIsTestingSupabase] = useState(false)
@@ -100,49 +104,53 @@ function App() {
   const [password, setPassword] = useState('')
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
+
   const [organizations, setOrganizations] = useState<Organization[]>([])
-const [activeOrganizationId, setActiveOrganizationId] = useState('')
-const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
-const [organizationError, setOrganizationError] = useState<string | null>(null)
-const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false)
-const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false)
-const [newOrganizationName, setNewOrganizationName] = useState('')
-const [isCreatingOrganization, setIsCreatingOrganization] = useState(false)
-const [organizationRefresh, setOrganizationRefresh] = useState(0)
-async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
-  event.preventDefault()
+  const [activeOrganizationId, setActiveOrganizationId] = useState('')
+  const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
+  const [organizationError, setOrganizationError] = useState<string | null>(null)
+  const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false)
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false)
+  const [newOrganizationName, setNewOrganizationName] = useState('')
+  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false)
+  const [organizationRefresh, setOrganizationRefresh] = useState(0)
 
-  const name = newOrganizationName.trim()
+  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
 
-  if (!name || !supabase) return
+    const name = newOrganizationName.trim()
 
-  setIsCreatingOrganization(true)
-  setOrganizationError(null)
+    if (!name || !supabase) return
 
-  try {
-    const { data, error } = await supabase.rpc('create_organization', {
-      p_name: name,
-    })
+    setIsCreatingOrganization(true)
+    setOrganizationError(null)
 
-    if (error) throw error
+    try {
+      const { data, error } = await supabase.rpc('create_organization', {
+        p_name: name,
+      })
 
-    if (!data) {
-      throw new Error('Aucun identifiant retourné par Supabase.')
+      if (error) throw error
+
+      if (!data) {
+        throw new Error('Aucun identifiant retourné par Supabase.')
+      }
+
+      setActiveOrganizationId(data)
+      setNewOrganizationName('')
+      setIsCreateOrganizationOpen(false)
+      setOrganizationRefresh((current) => current + 1)
+    } catch (error) {
+      console.error('Erreur de création de l’entreprise :', error)
+      setOrganizationError(
+        'La création de l’entreprise a échoué. Vérifiez la configuration Supabase et réessayez.',
+      )
+    } finally {
+      setIsCreatingOrganization(false)
     }
-
-    setActiveOrganizationId(data)
-    setNewOrganizationName('')
-    setIsCreateOrganizationOpen(false)
-    setOrganizationRefresh((current) => current + 1)
-  } catch (error) {
-    console.error('Erreur de création de l’entreprise :', error)
-    setOrganizationError(
-      'La création de l’entreprise a échoué. Vérifiez la configuration Supabase et réessayez.',
-    )
-  } finally {
-    setIsCreatingOrganization(false)
   }
-}
+
+  // Vérification de la session utilisateur
   useEffect(() => {
     if (!supabase) {
       setUser(null)
@@ -152,81 +160,7 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
       )
       return
     }
-    useEffect(() => {
-  if (!supabase || authStatus !== 'authenticated' || !user) {
-    setOrganizations([])
-    setActiveOrganizationId('')
-    return
-  }
 
-  let isMounted = true
-
-  async function loadOrganizations() {
-    if (!supabase) return
-
-    setIsLoadingOrganizations(true)
-    setOrganizationError(null)
-
-    try {
-      const { data, error } = await supabase
-        .from('organization_members')
-        .select(`
-          organization_id,
-          role,
-          organizations!organization_members_organization_id_fkey (
-            id,
-            name
-          )
-        `)
-
-      if (error) throw error
-
-      const rows = (data ?? []) as unknown as Array<{
-        organization_id: string
-        role: string
-        organizations: {
-          id: string
-          name: string
-        } | null
-      }>
-
-      const loadedOrganizations = rows
-        .filter((row) => row.organizations !== null)
-        .map((row) => ({
-          id: row.organizations!.id,
-          name: row.organizations!.name,
-          role: row.role,
-        }))
-
-      if (!isMounted) return
-
-      setOrganizations(loadedOrganizations)
-
-      setActiveOrganizationId((current) => {
-        if (loadedOrganizations.some((org) => org.id === current)) {
-          return current
-        }
-
-        return loadedOrganizations[0]?.id ?? ''
-      })
-    } catch (error) {
-      if (!isMounted) return
-
-      console.error('Erreur de chargement des entreprises :', error)
-      setOrganizationError(
-        'Impossible de charger vos entreprises. Vérifiez votre connexion et réessayez.',
-      )
-    } finally {
-      if (isMounted) setIsLoadingOrganizations(false)
-    }
-  }
-
-  void loadOrganizations()
-
-  return () => {
-    isMounted = false
-  }
-}, [authStatus, user?.id, organizationRefresh])
     let isMounted = true
     let authEventVersion = 0
 
@@ -238,7 +172,6 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return
 
-      // Toute notification reçue invalide une vérification getUser() plus ancienne.
       authEventVersion += 1
       setUser(session?.user ?? null)
       setAuthStatus(session?.user ? 'authenticated' : 'unauthenticated')
@@ -298,6 +231,83 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
     }
   }, [authCheckAttempt])
 
+  // Chargement des entreprises accessibles à l'utilisateur
+  useEffect(() => {
+    if (!supabase || authStatus !== 'authenticated' || !user) {
+      setOrganizations([])
+      setActiveOrganizationId('')
+      return
+    }
+
+    let isMounted = true
+
+    async function loadOrganizations() {
+      if (!supabase) return
+
+      setIsLoadingOrganizations(true)
+      setOrganizationError(null)
+
+      try {
+        const { data, error } = await supabase
+          .from('organization_members')
+          .select(`
+            organization_id,
+            role,
+            organizations!organization_members_organization_id_fkey (
+              id,
+              name
+            )
+          `)
+
+        if (error) throw error
+
+        const rows = (data ?? []) as unknown as Array<{
+          organization_id: string
+          role: string
+          organizations: {
+            id: string
+            name: string
+          } | null
+        }>
+
+        const loadedOrganizations = rows
+          .filter((row) => row.organizations !== null)
+          .map((row) => ({
+            id: row.organizations!.id,
+            name: row.organizations!.name,
+            role: row.role,
+          }))
+
+        if (!isMounted) return
+
+        setOrganizations(loadedOrganizations)
+
+        setActiveOrganizationId((current) => {
+          if (loadedOrganizations.some((org) => org.id === current)) {
+            return current
+          }
+
+          return loadedOrganizations[0]?.id ?? ''
+        })
+      } catch (error) {
+        if (!isMounted) return
+
+        console.error('Erreur de chargement des entreprises :', error)
+        setOrganizationError(
+          'Impossible de charger vos entreprises. Vérifiez votre connexion et réessayez.',
+        )
+      } finally {
+        if (isMounted) setIsLoadingOrganizations(false)
+      }
+    }
+
+    void loadOrganizations()
+
+    return () => {
+      isMounted = false
+    }
+  }, [authStatus, user?.id, organizationRefresh])
+
   const filteredInvoices = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('fr')
     if (!query) return invoices
@@ -331,6 +341,7 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
       },
       ...current,
     ])
+
     setCustomer('')
     setAmount('')
     setIsCreateOpen(false)
@@ -568,106 +579,106 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
           <span>Factur<span className="brand-accent">Pro</span></span>
         </a>
 
-        <<div style={{ position: 'relative' }}>
-  <button
-    className="workspace-switcher"
-    type="button"
-    onClick={() => setIsWorkspaceMenuOpen((open) => !open)}
-    aria-expanded={isWorkspaceMenuOpen}
-  >
-    <span className="workspace-avatar">
-      {(organizations.find((org) => org.id === activeOrganizationId)?.name ?? 'FP')
-        .slice(0, 2)
-        .toUpperCase()}
-    </span>
+        {/* Sélecteur des entreprises */}
+        <div style={{ position: 'relative' }}>
+          <button
+            className="workspace-switcher"
+            type="button"
+            onClick={() => setIsWorkspaceMenuOpen((open) => !open)}
+            aria-expanded={isWorkspaceMenuOpen}
+          >
+            <span className="workspace-avatar">
+              {(organizations.find((org) => org.id === activeOrganizationId)?.name ?? 'FP')
+                .slice(0, 2)
+                .toUpperCase()}
+            </span>
 
-    <span className="workspace-copy">
-      <strong>
-        {isLoadingOrganizations
-          ? 'Chargement…'
-          : organizations.find((org) => org.id === activeOrganizationId)?.name ??
-            'Aucune entreprise'}
-      </strong>
-      <small>Compte professionnel</small>
-    </span>
+            <span className="workspace-copy">
+              <strong>
+                {isLoadingOrganizations
+                  ? 'Chargement…'
+                  : organizations.find((org) => org.id === activeOrganizationId)?.name ??
+                    'Aucune entreprise'}
+              </strong>
+              <small>Compte professionnel</small>
+            </span>
 
-    <ChevronDown size={16} aria-hidden="true" />
-  </button>
+            <ChevronDown size={16} aria-hidden="true" />
+          </button>
 
-  {isWorkspaceMenuOpen && (
-    <div
-      style={{
-        position: 'absolute',
-        top: '100%',
-        left: 0,
-        right: 0,
-        zIndex: 20,
-        background: 'white',
-        border: '1px solid #e5e7eb',
-        borderRadius: 10,
-        padding: 8,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-      }}
-    >
-      {organizations.map((organization) => (
-        <button
-          key={organization.id}
-          type="button"
-          onClick={() => {
-            setActiveOrganizationId(organization.id)
-            setIsWorkspaceMenuOpen(false)
-          }}
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            width: '100%',
-            padding: 10,
-            border: 0,
-            borderRadius: 6,
-            background:
-              activeOrganizationId === organization.id ? '#f1f5f9' : 'white',
-            cursor: 'pointer',
-            textAlign: 'left',
-          }}
-        >
-          <span>{organization.name}</span>
-          {activeOrganizationId === organization.id && <Check size={16} />}
-        </button>
-      ))}
+          {isWorkspaceMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                zIndex: 20,
+                background: 'white',
+                border: '1px solid #e5e7eb',
+                borderRadius: 10,
+                padding: 8,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              }}
+            >
+              {organizations.map((organization) => (
+                <button
+                  key={organization.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveOrganizationId(organization.id)
+                    setIsWorkspaceMenuOpen(false)
+                  }}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    padding: 10,
+                    border: 0,
+                    borderRadius: 6,
+                    background:
+                      activeOrganizationId === organization.id ? '#f1f5f9' : 'white',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span>{organization.name}</span>
+                  {activeOrganizationId === organization.id && <Check size={16} />}
+                </button>
+              ))}
 
-      <button
-        type="button"
-        onClick={() => {
-          setIsWorkspaceMenuOpen(false)
-          setIsCreateOrganizationOpen(true)
-        }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          width: '100%',
-          padding: 10,
-          marginTop: 6,
-          border: 0,
-          borderTop: '1px solid #e5e7eb',
-          background: 'white',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        <Plus size={16} />
-        Ajouter une entreprise
-      </button>
-    </div>
-  )}
-</div>>
-          <span className="workspace-avatar">AC</span>
-          <span className="workspace-copy">
-            <strong>Atelier Créatif</strong>
-            <small>Compte professionnel</small>
-          </span>
-          <ChevronDown size={16} aria-hidden="true" />
-        </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsWorkspaceMenuOpen(false)
+                  setIsCreateOrganizationOpen(true)
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  padding: 10,
+                  marginTop: 6,
+                  border: 0,
+                  borderTop: '1px solid #e5e7eb',
+                  background: 'white',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <Plus size={16} />
+                Ajouter une entreprise
+              </button>
+            </div>
+          )}
+        </div>
+
+        {organizationError && (
+          <p role="alert" style={{ fontSize: 12, color: '#b91c1c' }}>
+            {organizationError}
+          </p>
+        )}
 
         <nav className="navigation" aria-label="Navigation principale">
           <span className="nav-heading">MENU</span>
@@ -704,6 +715,7 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
               Consulter le centre d’aide <ArrowRight size={14} />
             </button>
           </div>
+
           <div className="profile">
             <span className="profile-avatar">CL</span>
             <span className="profile-copy">
@@ -774,6 +786,7 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
               <strong className="stat-value">12 480 €</strong>
               <p className="stat-foot"><span className="positive">+12,8 %</span> par rapport au mois dernier</p>
             </article>
+
             <article className="stat-card">
               <div className="stat-heading">
                 <span>En attente de paiement</span>
@@ -782,6 +795,7 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
               <strong className="stat-value">3 840 €</strong>
               <p className="stat-foot">4 factures à suivre</p>
             </article>
+
             <article className="stat-card">
               <div className="stat-heading">
                 <span>Factures émises</span>
@@ -790,6 +804,7 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
               <strong className="stat-value">18</strong>
               <p className="stat-foot">Ce mois-ci</p>
             </article>
+
             <article className="stat-card">
               <div className="stat-heading">
                 <span>Clients actifs</span>
@@ -853,9 +868,12 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
                       </td>
                     </tr>
                   ))}
+
                   {filteredInvoices.length === 0 && (
                     <tr>
-                      <td className="empty-row" colSpan={5}>Aucune facture ne correspond à votre recherche.</td>
+                      <td className="empty-row" colSpan={5}>
+                        Aucune facture ne correspond à votre recherche.
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -863,7 +881,9 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
             </div>
 
             <div className="table-footer">
-              <span>{filteredInvoices.length} facture{filteredInvoices.length > 1 ? 's' : ''} affichée{filteredInvoices.length > 1 ? 's' : ''}</span>
+              <span>
+                {filteredInvoices.length} facture{filteredInvoices.length > 1 ? 's' : ''} affichée{filteredInvoices.length > 1 ? 's' : ''}
+              </span>
               <span className="demo-note">Données de démonstration</span>
             </div>
           </section>
@@ -874,107 +894,152 @@ async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
           </footer>
         </div>
       </main>
-{isCreateOrganizationOpen && (
-  <div
-    className="modal-backdrop"
-    onMouseDown={(event) => {
-      if (event.target === event.currentTarget) {
-        setIsCreateOrganizationOpen(false)
-      }
-    }}
-  >
-    <section
-      className="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="organization-modal-title"
-    >
-      <div className="modal-heading">
-        <div>
-          <p className="eyebrow">ESPACE PROFESSIONNEL</p>
-          <h2 id="organization-modal-title">Ajouter une entreprise</h2>
-        </div>
 
-        <button
-          className="plain-icon-button"
-          onClick={() => setIsCreateOrganizationOpen(false)}
-          type="button"
-          aria-label="Fermer"
+      {/* Fenêtre de création d'entreprise */}
+      {isCreateOrganizationOpen && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsCreateOrganizationOpen(false)
+            }
+          }}
         >
-          <X size={19} />
-        </button>
-      </div>
-
-      <p className="modal-description">
-        Créez un nouvel espace pour gérer une autre entreprise depuis votre compte.
-      </p>
-
-      <form className="invoice-form" onSubmit={handleCreateOrganization}>
-        <label>
-          Nom de l'entreprise
-          <input
-            autoFocus
-            required
-            maxLength={150}
-            value={newOrganizationName}
-            onChange={(event) => setNewOrganizationName(event.target.value)}
-            placeholder="Ex. Atelier Martin"
-          />
-        </label>
-
-        {organizationError && (
-          <p role="alert">{organizationError}</p>
-        )}
-
-        <div className="modal-actions">
-          <button
-            className="secondary-button"
-            onClick={() => setIsCreateOrganizationOpen(false)}
-            type="button"
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="organization-modal-title"
           >
-            Annuler
-          </button>
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">ESPACE PROFESSIONNEL</p>
+                <h2 id="organization-modal-title">Ajouter une entreprise</h2>
+              </div>
 
-          <button
-            className="primary-button"
-            disabled={isCreatingOrganization || !newOrganizationName.trim()}
-            type="submit"
-          >
-            <Plus size={17} />
-            {isCreatingOrganization ? 'Création…' : 'Créer l’entreprise'}
-          </button>
+              <button
+                className="plain-icon-button"
+                onClick={() => setIsCreateOrganizationOpen(false)}
+                type="button"
+                aria-label="Fermer"
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <p className="modal-description">
+              Créez un nouvel espace pour gérer une autre entreprise depuis votre compte.
+            </p>
+
+            <form className="invoice-form" onSubmit={handleCreateOrganization}>
+              <label>
+                Nom de l'entreprise
+                <input
+                  autoFocus
+                  required
+                  maxLength={150}
+                  value={newOrganizationName}
+                  onChange={(event) => setNewOrganizationName(event.target.value)}
+                  placeholder="Ex. Atelier Martin"
+                />
+              </label>
+
+              {organizationError && (
+                <p role="alert">{organizationError}</p>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  className="secondary-button"
+                  onClick={() => setIsCreateOrganizationOpen(false)}
+                  type="button"
+                >
+                  Annuler
+                </button>
+
+                <button
+                  className="primary-button"
+                  disabled={isCreatingOrganization || !newOrganizationName.trim()}
+                  type="submit"
+                >
+                  <Plus size={17} />
+                  {isCreatingOrganization ? 'Création…' : 'Créer l’entreprise'}
+                </button>
+              </div>
+            </form>
+          </section>
         </div>
-      </form>
-    </section>
-  </div>
-)}
+      )}
+
+      {/* Fenêtre de création de facture */}
       {isCreateOpen && (
-        <div className="modal-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setIsCreateOpen(false)
-        }}>
-          <section aria-labelledby="modal-title" aria-modal="true" className="modal" role="dialog">
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsCreateOpen(false)
+          }}
+        >
+          <section
+            aria-labelledby="modal-title"
+            aria-modal="true"
+            className="modal"
+            role="dialog"
+          >
             <div className="modal-heading">
               <div>
                 <p className="eyebrow">NOUVEAU DOCUMENT</p>
                 <h2 id="modal-title">Créer une facture</h2>
               </div>
-              <button className="plain-icon-button" onClick={() => setIsCreateOpen(false)} type="button" aria-label="Fermer">
+              <button
+                className="plain-icon-button"
+                onClick={() => setIsCreateOpen(false)}
+                type="button"
+                aria-label="Fermer"
+              >
                 <X size={19} />
               </button>
             </div>
-            <p className="modal-description">Cette démo ajoute la facture à la liste localement, sans l’enregistrer dans Supabase.</p>
+
+            <p className="modal-description">
+              Cette démo ajoute la facture à la liste localement, sans l’enregistrer dans Supabase.
+            </p>
+
             <form className="invoice-form" onSubmit={handleCreateInvoice}>
               <label>
                 Nom du client
-                <input autoFocus onChange={(event) => setCustomer(event.target.value)} placeholder="Ex. Société Exemple" required value={customer} />
+                <input
+                  autoFocus
+                  onChange={(event) => setCustomer(event.target.value)}
+                  placeholder="Ex. Société Exemple"
+                  required
+                  value={customer}
+                />
               </label>
+
               <label>
                 Montant TTC (€)
-                <input min="0.01" onChange={(event) => setAmount(event.target.value)} placeholder="Ex. 1200,00" required step="0.01" type="number" value={amount} />
+                <input
+                  min="0.01"
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="Ex. 1200,00"
+                  required
+                  step="0.01"
+                  type="number"
+                  value={amount}
+                />
               </label>
+
               <div className="modal-actions">
-                <button className="secondary-button" onClick={() => setIsCreateOpen(false)} type="button">Annuler</button>
-                <button className="primary-button" type="submit"><Plus size={17} /> Ajouter la facture</button>
+                <button
+                  className="secondary-button"
+                  onClick={() => setIsCreateOpen(false)}
+                  type="button"
+                >
+                  Annuler
+                </button>
+                <button className="primary-button" type="submit">
+                  <Plus size={17} /> Ajouter la facture
+                </button>
               </div>
             </form>
           </section>
