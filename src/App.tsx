@@ -15,6 +15,10 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import {
+  testOrganizationsRead,
+  type SupabaseReadTestResult,
+} from './lib/supabase'
 
 type InvoiceStatus = 'Payée' | 'En attente' | 'En retard' | 'Brouillon'
 
@@ -52,6 +56,9 @@ function App() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [customer, setCustomer] = useState('')
   const [amount, setAmount] = useState('')
+  const [supabaseTestResult, setSupabaseTestResult] =
+    useState<SupabaseReadTestResult | null>(null)
+  const [isTestingSupabase, setIsTestingSupabase] = useState(false)
 
   const filteredInvoices = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('fr')
@@ -89,6 +96,24 @@ function App() {
     setCustomer('')
     setAmount('')
     setIsCreateOpen(false)
+  }
+
+  async function handleSupabaseTest() {
+    setIsTestingSupabase(true)
+    setSupabaseTestResult(null)
+
+    try {
+      const result = await testOrganizationsRead()
+      setSupabaseTestResult(result)
+    } catch {
+      setSupabaseTestResult({
+        status: 'read-error',
+        message:
+          'Le test Supabase a échoué pour une raison technique. Réessayez.',
+      })
+    } finally {
+      setIsTestingSupabase(false)
+    }
   }
 
   return (
@@ -181,6 +206,23 @@ function App() {
               Créer une facture
             </button>
           </section>
+
+          <div>
+            <button
+              className="secondary-button"
+              disabled={isTestingSupabase}
+              onClick={handleSupabaseTest}
+              type="button"
+            >
+              {isTestingSupabase ? 'Test en cours…' : 'Tester Supabase'}
+            </button>
+
+            {supabaseTestResult && (
+              <p role="status" aria-live="polite">
+                {supabaseTestResult.message}
+              </p>
+            )}
+          </div>
 
           <section className="stats-grid" aria-label="Indicateurs financiers">
             <article className="stat-card">
