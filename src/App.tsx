@@ -1584,7 +1584,12 @@ function App() {
                     <table>
                       <thead>
                         <tr>
-                          <th>NUMÉRO</th><th>CLIENT</th><th>DATE D’ÉMISSION</th><th>MONTANT TTC</th><th>STATUT</th>
+                          <th>NUMÉRO</th>
+<th>CLIENT</th>
+<th>DATE D’ÉMISSION</th>
+<th>MONTANT TTC</th>
+<th>STATUT</th>
+<th>ACTION</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1599,11 +1604,21 @@ function App() {
                                 {invoice.status === 'Payée' && <Check size={12} />}
                                 {invoice.status}
                               </span>
+                              <td>
+  <button
+    className="secondary-button"
+    type="button"
+    onClick={() => handleDownloadInvoice(invoice)}
+    title="Télécharger la facture en PDF"
+  >
+    <FileText size={15} /> PDF
+  </button>
+</td>
                             </td>
                           </tr>
                         ))}
                         {filteredInvoices.length === 0 && (
-                          <tr><td className="empty-row" colSpan={5}>Aucune facture enregistrée.</td></tr>
+                          <tr><td className="empty-row" colSpan={6}>Aucune facture enregistrée.</td></tr>
                         )}
                       </tbody>
                     </table>
