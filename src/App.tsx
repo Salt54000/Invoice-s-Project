@@ -183,7 +183,16 @@ const [quoteError, setQuoteError] = useState<string | null>(null)
   ])
 
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false)
+// États du formulaire de création de devis
+const [isCreateQuoteOpen, setIsCreateQuoteOpen] = useState(false)
+const [selectedQuoteClientId, setSelectedQuoteClientId] = useState('')
+const [quoteValidDays, setQuoteValidDays] = useState(30)
 
+const [quoteLines, setQuoteLines] = useState<InvoiceLine[]>([
+  { description: '', quantity: 1, unit_price: 0, vat_rate: 20 },
+])
+
+const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking')
   const [authMessage, setAuthMessage] = useState<string | null>(null)
@@ -1750,6 +1759,7 @@ async function handleDownloadInvoice(invoice: Invoice) {
                )}
             </section>
             ) : activePage === 'Devis' ? (
+ 
   <section className="content-card">
     <div className="card-header">
       <div>
@@ -1758,10 +1768,80 @@ async function handleDownloadInvoice(invoice: Invoice) {
       </div>
     </div>
 
-    <p className="empty-row">
-      Aucun devis à afficher pour le moment.
-    </p>
+    {quoteError && <p role="alert">{quoteError}</p>}
+
+    {isLoadingQuotes ? (
+      <p>Chargement des devis…</p>
+    ) : (
+      <>
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>NUMÉRO</th>
+                <th>CLIENT</th>
+                <th>DATE D’ÉMISSION</th>
+                <th>DATE DE VALIDITÉ</th>
+                <th>MONTANT TTC</th>
+                <th>STATUT</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {quotes.map((quote) => {
+                const linkedClient = clients.find(
+                  (client) => client.id === quote.client_id
+                )
+
+                return (
+                  <tr key={quote.id}>
+                    <td className="invoice-number">
+                      {quote.quote_number}
+                    </td>
+                    <td>
+                      {linkedClient?.name ?? 'Client non renseigné'}
+                    </td>
+                    <td className="muted-cell">
+                      {formatDate(quote.issue_date)}
+                    </td>
+                    <td className="muted-cell">
+                      {quote.valid_until
+                        ? formatDate(quote.valid_until)
+                        : '—'}
+                    </td>
+                    <td className="amount-cell">
+                      {formatCurrency(quote.total)}
+                    </td>
+                    <td>
+                      <span className={`status-badge ${quote.status.toLowerCase().replaceAll(' ', '-')}`}>
+                        {quote.status}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+
+              {quotes.length === 0 && (
+                <tr>
+                  <td className="empty-row" colSpan={6}>
+                    Aucun devis enregistré pour cette entreprise.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="table-footer">
+          <span>
+            {quotes.length} devis{quotes.length > 1 ? ' enregistrés' : ' enregistré'}
+          </span>
+          <span>Enregistrés dans Supabase</span>
+        </div>
+      </>
+    )}
   </section>
+
 ) : activePage === 'Paramètres' ? (
   <section className="settings-page">
     <div className="page-heading">
