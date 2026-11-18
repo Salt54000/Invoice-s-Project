@@ -18,7 +18,6 @@ import {
   X,
   Trash2,
   TrendingUp,
-  AlertCircle,
   Wallet,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
@@ -31,6 +30,7 @@ type Invoice = {
   customer: string
   date: string
   issueDate: string
+  dueDate: string
   amount: number
   status: InvoiceStatus
 }
@@ -89,6 +89,26 @@ const formatDate = (date: string) =>
     year: 'numeric',
   }).format(new Date(`${date}T12:00:00`))
 
+function getTodayDate() {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function addDaysToDate(date: string, days: number) {
+  const result = new Date(`${date}T12:00:00`)
+  result.setDate(result.getDate() + days)
+
+  const year = result.getFullYear()
+  const month = String(result.getMonth() + 1).padStart(2, '0')
+  const day = String(result.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
 function isNetworkError(error: unknown): boolean {
   const message =
     error instanceof Error
@@ -118,9 +138,12 @@ function App() {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState('')
+  const [paymentTermDays, setPaymentTermDays] = useState(30)
+
   const [invoiceLines, setInvoiceLines] = useState<InvoiceLine[]>([
     { description: '', quantity: 1, unit_price: 0, vat_rate: 20 },
   ])
+
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false)
 
   const [user, setUser] = useState<User | null>(null)
@@ -498,11 +521,39 @@ function App() {
       try {
         const { data, error } = await supabase
           .from('invoices')
-          .select('id, invoice_number, status, issue_date, total, client_id')
+          .select('id, invoice_number, status, issue_date, due_date, total, client_id')
           .eq('organization_id', activeOrganizationId)
           .order('created_at', { ascending: false })
 
         if (error) throw error
+
+        const today = getTodayDate()
+
+        const overdueIds = (data ?? [])
+          .filter(
+            (row) =>
+              row.status === 'pending' &&
+              row.due_date &&
+              row.due_date < today,
+          )
+          .map((row) => row.id)
+
+        // Mise à jour du statut dans Supabase pour les factures échues
+        if (overdueIds.length > 0) {
+          const { error: overdueError } = await supabase
+            .from('invoices')
+            .update({ status: 'overdue' })
+            .in('id', overdueIds)
+            .eq('organization_id', activeOrganizationId)
+            .eq('status', 'pending')
+
+          if (overdueError) {
+            console.error(
+              'Impossible de mettre à jour les factures en retard :',
+              overdueError,
+            )
+          }
+        }
 
         const loadedInvoices: Invoice[] = (data ?? []).map((row) => {
           const linkedClient = clients.find(
@@ -516,14 +567,22 @@ function App() {
             draft: 'Brouillon',
           }
 
+          const isOverdue =
+            row.status === 'pending' &&
+            row.due_date &&
+            row.due_date < today
+
           return {
             id: row.id,
             number: row.invoice_number,
             customer: linkedClient?.name ?? 'Client non renseigné',
             date: formatDate(row.issue_date),
             issueDate: row.issue_date,
+            dueDate: row.due_date ?? '',
             amount: Number(row.total),
-            status: statusMap[row.status] ?? 'Brouillon',
+            status: isOverdue
+              ? 'En retard'
+              : statusMap[row.status] ?? 'Brouillon',
           }
         })
 
@@ -645,6 +704,11 @@ function App() {
       return
     }
 
+    if (![30, 45, 60].includes(paymentTermDays)) {
+      setInvoiceError('Le délai de paiement doit être de 30, 45 ou 60 jours.')
+      return
+    }
+
     const validLines = invoiceLines.filter(
       (line) =>
         line.description.trim() &&
@@ -664,7 +728,8 @@ function App() {
     let createdInvoiceId: string | null = null
 
     try {
-      const issueDate = new Date().toISOString().slice(0, 10)
+      const issueDate = getTodayDate()
+      const dueDate = addDaysToDate(issueDate, paymentTermDays)
       const invoiceNumber = `FAC-${new Date().getFullYear()}-${Date.now()}`
 
       const calculatedSubtotal = validLines.reduce(
@@ -688,6 +753,7 @@ function App() {
           invoice_number: invoiceNumber,
           status: 'draft',
           issue_date: issueDate,
+          due_date: dueDate,
           subtotal: calculatedSubtotal,
           tax_total: calculatedTax,
           total: calculatedTotal,
@@ -729,6 +795,7 @@ function App() {
           customer: client?.name ?? 'Client',
           date: formatDate(issueDate),
           issueDate,
+          dueDate,
           amount: calculatedTotal,
           status: 'Brouillon',
         },
@@ -736,6 +803,7 @@ function App() {
       ])
 
       setSelectedClientId('')
+      setPaymentTermDays(30)
       setInvoiceLines([
         { description: '', quantity: 1, unit_price: 0, vat_rate: 20 },
       ])
@@ -1540,13 +1608,35 @@ function App() {
             <form className="invoice-form" onSubmit={handleCreateInvoice}>
               <label>
                 Client
-                <select required value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}>
+                <select
+                  required
+                  value={selectedClientId}
+                  onChange={(event) => setSelectedClientId(event.target.value)}
+                >
                   <option value="">Sélectionner un client</option>
                   {clients.map((client) => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
                   ))}
                 </select>
               </label>
+
+              <label>
+                Délai de paiement
+                <select
+                  value={paymentTermDays}
+                  onChange={(event) => setPaymentTermDays(Number(event.target.value))}
+                >
+                  <option value={30}>30 jours</option>
+                  <option value={45}>45 jours</option>
+                  <option value={60}>60 jours (maximum)</option>
+                </select>
+              </label>
+
+              <p className="modal-description">
+                Date d’échéance prévue : <strong>{formatDate(addDaysToDate(getTodayDate(), paymentTermDays))}</strong>
+              </p>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                 <strong>Lignes de facture</strong>
