@@ -1214,3 +1214,52 @@ textarea {
     padding-left: 14px;
   }
 }
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 14px;
+  padding: 24px;
+  max-width: 650px;
+}
+
+.settings-card h3 {
+  margin-top: 0;
+}
+
+.settings-card input[type="file"] {
+  display: block;
+  margin-top: 12px;
+  max-width: 100%;
+}
+
+.logo-preview {
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px dashed var(--border-color, #ddd);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  min-height: 80px;
+}
+
+.logo-preview img {
+  max-width: 180px;
+  max-height: 90px;
+  object-fit: contain;
+}
+
+.error-message {
+  color: #dc2626;
+}
+
+.success-message {
+  color: #16a34a;
+}
