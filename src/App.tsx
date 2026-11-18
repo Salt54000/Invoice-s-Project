@@ -1335,15 +1335,6 @@ function removeQuoteLine(index: number) {
             deleteError,
           )
         }
-      }
-
-      setInvoiceError(
-        'La facture n’a pas pu être enregistrée. Vérifiez les tables invoices et invoice_items ainsi que leurs règles RLS.',
-      )
-    } finally {
-      setIsCreatingInvoice(false)
-    }
-  }
 
 async function handleCreateQuote(event: FormEvent<HTMLFormElement>) {
   event.preventDefault()
@@ -1362,34 +1353,6 @@ async function handleCreateQuote(event: FormEvent<HTMLFormElement>) {
     setQuoteError('La durée de validité doit être supérieure à zéro.')
     return
   }
-
-async function handleUpdateQuoteStatus(
-  quoteId: string,
-  newStatus: QuoteStatus,
-) {
-  if (!supabase) return
-
-  setQuoteError(null)
-
-  const { error } = await supabase
-    .from('quotes')
-    .update({ status: newStatus })
-    .eq('id', quoteId)
-
-  if (error) {
-    console.error('Erreur de modification du statut :', error)
-    setQuoteError('Impossible de modifier le statut du devis.')
-    return
-  }
-
-  setQuotes((current) =>
-    current.map((quote) =>
-      quote.id === quoteId
-        ? { ...quote, status: newStatus }
-        : quote,
-    ),
-  )
-}
 
   const validLines = quoteLines.filter(
     (line) =>
@@ -1516,6 +1479,35 @@ async function handleUpdateQuoteStatus(
     setIsCreatingQuote(false)
   }
 }
+
+async function handleUpdateQuoteStatus(
+  quoteId: string,
+  newStatus: QuoteStatus,
+) {
+  if (!supabase) return
+
+  setQuoteError(null)
+
+  const { error } = await supabase
+    .from('quotes')
+    .update({ status: newStatus })
+    .eq('id', quoteId)
+
+  if (error) {
+    console.error('Erreur de modification du statut :', error)
+    setQuoteError('Impossible de modifier le statut du devis.')
+    return
+  }
+
+  setQuotes((current) =>
+    current.map((quote) =>
+      quote.id === quoteId
+        ? { ...quote, status: newStatus }
+        : quote,
+    ),
+  )
+}
+
 
   async function handleSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
