@@ -42,7 +42,38 @@ type InvoiceLine = {
   unit_price: number
   vat_rate: number
 }
+type QuoteStatus =
+  | 'Brouillon'
+  | 'Envoyé'
+  | 'Accepté'
+  | 'Refusé'
+  | 'Expiré'
+  | 'Converti en facture'
 
+type Quote = {
+  id: string
+  quote_number: string
+  client_id: string
+  status: QuoteStatus
+  issue_date: string
+  valid_until: string | null
+  subtotal: number
+  tax_total: number
+  total: number
+  converted_invoice_id: string | null
+  created_at: string
+}
+
+type QuoteItem = {
+  id: string
+  quote_id: string
+  description: string
+  quantity: number
+  unit_price: number
+  vat_rate: number
+  total_ht: number
+  total_ttc: number
+}
 type Organization = {
   id: string
   name: string
