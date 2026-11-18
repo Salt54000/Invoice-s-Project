@@ -75,6 +75,7 @@ type AuthStatus =
 const navigation = [
   { label: 'Vue d’ensemble', icon: LayoutDashboard },
   { label: 'Factures', icon: FileText },
+  { label: 'Devis', icon: FileText },
   { label: 'Clients', icon: Users },
 ]
 
