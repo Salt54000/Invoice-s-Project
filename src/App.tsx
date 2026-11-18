@@ -1546,8 +1546,7 @@ async function handleDownloadInvoice(invoice: Invoice) {
                   </table>
                 </div>
               )}
-
-                                            </section>
+            </section>
           ) : activePage === 'Factures' ? (
             <section className="content-card">
               <div className="card-header">
@@ -1638,7 +1637,7 @@ async function handleDownloadInvoice(invoice: Invoice) {
                     <span>Enregistrées dans Supabase</span>
                   </div>
                   </>
-                              )}
+               )}
             </section>
              ) : activePage === 'Paramètres' ? (
   <section className="settings-page">
