@@ -2051,6 +2051,7 @@ async function handleUpdateQuoteStatus(
                       {formatCurrency(quote.total)}
                     </td>
                     
+
 <td>
   <select
     value={quote.status}
@@ -2070,6 +2071,23 @@ async function handleUpdateQuoteStatus(
     <option value="Expiré">Expiré</option>
   </select>
 </td>
+
+<td>
+  {quote.status === 'Accepté' && (
+    <button
+      className="primary-button"
+      type="button"
+      onClick={() => handleConvertQuoteToInvoice(quote.id)}
+    >
+      Convertir en facture
+    </button>
+  )}
+
+  {quote.status === 'Converti en facture' && (
+    <span>Facture créée</span>
+  )}
+</td>
+
 
                   </tr>
                 )
