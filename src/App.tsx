@@ -166,6 +166,9 @@ function App() {
   const [newOrganizationName, setNewOrganizationName] = useState('')
   const [isCreatingOrganization, setIsCreatingOrganization] = useState(false)
   const [organizationRefresh, setOrganizationRefresh] = useState(0)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+const [logoError, setLogoError] = useState<string | null>(null)
+const [logoSuccess, setLogoSuccess] = useState<string | null>(null)
 
   const [clients, setClients] = useState<Client[]>([])
   const [isLoadingClients, setIsLoadingClients] = useState(false)
@@ -340,7 +343,92 @@ function App() {
       setIsCreatingOrganization(false)
     }
   }
+const handleLogoUpload = async (
+  event: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = event.target.files?.[0]
 
+  if (!file || !activeOrganizationId) return
+
+  setLogoError(null)
+  setLogoSuccess(null)
+
+  // Seuls les utilisateurs owner ou admin peuvent modifier le logo
+  const organization = organizations.find(
+    (org) => org.id === activeOrganizationId
+  )
+
+  if (!organization || !['owner', 'admin'].includes(organization.role)) {
+    setLogoError("Tu n'as pas les droits nécessaires pour modifier ce logo.")
+    event.target.value = ''
+    return
+  }
+
+  const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
+
+  if (!allowedTypes.includes(file.type)) {
+    setLogoError('Format non accepté. Utilise PNG, JPG ou WebP.')
+    event.target.value = ''
+    return
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    setLogoError('Le fichier ne doit pas dépasser 2 Mo.')
+    event.target.value = ''
+    return
+  }
+
+  const extension =
+    file.type === 'image/png'
+      ? 'png'
+      : file.type === 'image/webp'
+        ? 'webp'
+        : 'jpg'
+
+  const path = `${activeOrganizationId}/logo.${extension}`
+
+  setIsUploadingLogo(true)
+
+  try {
+    const { error: uploadError } = await supabase.storage
+      .from('company-logos')
+      .upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+      })
+
+    if (uploadError) throw uploadError
+
+    const { data: publicUrlData } = supabase.storage
+      .from('company-logos')
+      .getPublicUrl(path)
+
+    const publicUrl = publicUrlData.publicUrl
+
+    const { error: updateError } = await supabase
+      .from('organizations')
+      .update({ logo_url: publicUrl })
+      .eq('id', activeOrganizationId)
+
+    if (updateError) throw updateError
+
+    setOrganizations((current) =>
+      current.map((org) =>
+        org.id === activeOrganizationId
+          ? { ...org, logo_url: publicUrl }
+          : org
+      )
+    )
+
+    setLogoSuccess('Logo enregistré avec succès.')
+  } catch (error) {
+    console.error("Erreur lors de l'import du logo :", error)
+    setLogoError("Impossible d'enregistrer le logo. Vérifie les autorisations Supabase.")
+  } finally {
+    setIsUploadingLogo(false)
+    event.target.value = ''
+  }
+}
   // Vérification de la session utilisateur
   useEffect(() => {
     if (!supabase) {
@@ -1558,7 +1646,57 @@ async function handleDownloadInvoice(invoice: Invoice) {
             </section>
           ) : (
             <>
-              <section className="welcome-row">
+             ) : activePage === 'Paramètres' ? (
+  <section className="settings-page">
+    <div className="page-heading">
+      <div>
+        <h2>Paramètres de l'entreprise</h2>
+        <p>Personnalise les informations de ton entreprise.</p>
+      </div>
+    </div>
+
+    <div className="settings-card">
+      <h3>Logo de l'entreprise</h3>
+      <p className="muted-cell">
+        Ce logo apparaîtra sur les PDF de tes factures.
+      </p>
+
+      {organizations.find(
+        (org) => org.id === activeOrganizationId
+      )?.logo_url && (
+        <div className="logo-preview">
+          <img
+            src={
+              organizations.find(
+                (org) => org.id === activeOrganizationId
+              )?.logo_url ?? ''
+            }
+            alt="Logo de l'entreprise"
+          />
+        </div>
+      )}
+
+      <label htmlFor="company-logo">Choisir un logo</label>
+      <input
+        id="company-logo"
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        onChange={handleLogoUpload}
+        disabled={isUploadingLogo}
+      />
+
+      <p className="muted-cell">
+        Formats acceptés : PNG, JPG et WebP. Taille maximale : 2 Mo.
+      </p>
+
+      {isUploadingLogo && <p>Enregistrement du logo...</p>}
+      {logoError && <p className="error-message">{logoError}</p>}
+      {logoSuccess && <p className="success-message">{logoSuccess}</p>}
+    </div>
+  </section>
+) : (
+  <>
+    <section className="welcome-row">
                 <div>
                   <p className="eyebrow">ESPACE PROFESSIONNEL</p>
                   <h1>Bienvenue dans FacturPro <span aria-hidden="true">☀️</span></h1>
