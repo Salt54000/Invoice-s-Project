@@ -1095,6 +1095,225 @@ async function handleDownloadInvoice(invoice: Invoice) {
   }
 }
 
+async function handleDownloadQuote(quote: Quote) {
+  if (!supabase) return
+
+  const printWindow = window.open('', '_blank')
+
+  if (!printWindow) {
+    alert('Autorisez les fenêtres pop-up pour télécharger votre devis.')
+    return
+  }
+
+  try {
+    const { data: items, error } = await supabase
+      .from('quote_items')
+      .select('description, quantity, unit_price, vat_rate, total_ht, total_ttc')
+      .eq('quote_id', quote.id)
+
+    if (error) throw error
+
+    const client = clients.find((item) => item.id === quote.client_id)
+    const organization = organizations.find(
+      (item) => item.id === activeOrganizationId,
+    )
+
+    if (!client) {
+      throw new Error('Client introuvable.')
+    }
+
+    const lines = (items ?? []).map((item) => `
+      <tr>
+        <td>${escapeHtml(item.description)}</td>
+        <td>${Number(item.quantity)}</td>
+        <td>${formatCurrency(Number(item.unit_price))}</td>
+        <td>${Number(item.vat_rate)} %</td>
+        <td>${formatCurrency(Number(item.total_ht))}</td>
+        <td>${formatCurrency(Number(item.total_ttc))}</td>
+      </tr>
+    `).join('')
+
+    const subtotal = (items ?? []).reduce(
+      (sum, item) => sum + Number(item.total_ht),
+      0,
+    )
+
+    const taxTotal = (items ?? []).reduce(
+      (sum, item) =>
+        sum + Number(item.total_ht) * Number(item.vat_rate) / 100,
+      0,
+    )
+
+    const total = (items ?? []).reduce(
+      (sum, item) => sum + Number(item.total_ttc),
+      0,
+    )
+
+    printWindow.document.open()
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <title>Devis ${escapeHtml(quote.quote_number)}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            color: #1f2937;
+            margin: 40px;
+          }
+          h1 {
+            color: #2563eb;
+            margin-bottom: 8px;
+          }
+          .header, .parties {
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+            margin-bottom: 35px;
+          }
+          .parties > div {
+            flex: 1;
+          }
+          .label {
+            color: #64748b;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+            font-size: 12px;
+          }
+          th, td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+          }
+          th {
+            background: #f1f5f9;
+          }
+          .totals {
+            width: 280px;
+            margin: 25px 0 0 auto;
+          }
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+          }
+          .grand-total {
+            border-top: 2px solid #2563eb;
+            font-size: 18px;
+            font-weight: bold;
+          }
+          .validity {
+            margin-top: 35px;
+            padding: 15px;
+            background: #f1f5f9;
+            border-radius: 6px;
+          }
+          footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #64748b;
+            font-size: 11px;
+          }
+          @media print {
+            body { margin: 20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1>DEVIS</h1>
+            <strong>${escapeHtml(quote.quote_number)}</strong>
+          </div>
+          <div>
+            <strong>${escapeHtml(organization?.name ?? '')}</strong>
+          </div>
+        </div>
+
+        <div class="parties">
+          <div>
+            <div class="label">Émetteur</div>
+            <strong>${escapeHtml(organization?.name ?? '')}</strong>
+          </div>
+          <div>
+            <div class="label">Client</div>
+            <strong>${escapeHtml(client.name)}</strong>
+            <p>${escapeHtml(client.address)}</p>
+            <p>${escapeHtml(client.postal_code)} ${escapeHtml(client.city)}</p>
+            <p>${escapeHtml(client.country)}</p>
+            <p>${escapeHtml(client.email)}</p>
+            <p>${escapeHtml(client.phone)}</p>
+            <p>SIRET : ${escapeHtml(client.siret)}</p>
+            <p>N° TVA : ${escapeHtml(client.vat_number)}</p>
+          </div>
+        </div>
+
+        <p>Date d'émission : ${escapeHtml(quote.issue_date)}</p>
+        <p>Date de validité : ${escapeHtml(quote.valid_until ?? 'Non précisée')}</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Qté</th>
+              <th>Prix unitaire</th>
+              <th>TVA</th>
+              <th>Total HT</th>
+              <th>Total TTC</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lines}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <div class="total-row">
+            <span>Total HT</span>
+            <strong>${formatCurrency(subtotal)}</strong>
+          </div>
+          <div class="total-row">
+            <span>Total TVA</span>
+            <strong>${formatCurrency(taxTotal)}</strong>
+          </div>
+          <div class="total-row grand-total">
+            <span>Total TTC</span>
+            <strong>${formatCurrency(total)}</strong>
+          </div>
+        </div>
+
+        <div class="validity">
+          Ce devis est valable jusqu'au
+          <strong>${escapeHtml(quote.valid_until ?? 'Non précisé')}</strong>.
+          Bon pour accord, date et signature du client :
+          <br><br><br>
+        </div>
+
+        <footer>Document généré avec FacturPro.</footer>
+      </body>
+      </html>
+    `)
+
+    printWindow.document.close()
+
+    printWindow.onload = () => {
+      printWindow.focus()
+      printWindow.print()
+    }
+  } catch (error) {
+    console.error('Erreur de génération du PDF du devis :', error)
+    printWindow.close()
+    alert('Impossible de préparer le PDF de ce devis.')
+  }
+}
+
     async function handleCreateClient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -2121,6 +2340,13 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
   {quote.status === 'Converti en facture' && (
     <span>Facture créée</span>
   )}
+  <button
+  className="secondary-button"
+  type="button"
+  onClick={() => handleDownloadQuote(quote)}
+>
+  Télécharger le devis
+</button>
 </td>
 
 
