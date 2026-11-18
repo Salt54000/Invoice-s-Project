@@ -1535,7 +1535,7 @@ async function handleDownloadInvoice(invoice: Invoice) {
     </td>
   </tr>
 ))}
-                        ))}
+                        
                         {filteredInvoices.length === 0 && (
                           <tr><td className="empty-row" colSpan={6}>Aucune facture enregistrée.</td></tr>
                         )}
