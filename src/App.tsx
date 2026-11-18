@@ -244,7 +244,27 @@ const [logoSuccess, setLogoSuccess] = useState<string | null>(null)
   )
 
   const invoiceTotal = subtotal + taxTotal
+// Calcul des montants du devis
+const quoteSubtotal = useMemo(
+  () =>
+    quoteLines.reduce(
+      (sum, line) => sum + line.quantity * line.unit_price,
+      0,
+    ),
+  [quoteLines],
+)
 
+const quoteTaxTotal = useMemo(
+  () =>
+    quoteLines.reduce(
+      (sum, line) =>
+        sum + line.quantity * line.unit_price * (line.vat_rate / 100),
+      0,
+    ),
+  [quoteLines],
+)
+
+const quoteTotal = quoteSubtotal + quoteTaxTotal
   // Calcul des indicateurs du tableau de bord
   const dashboardStats = useMemo(() => {
     const issuedInvoices = invoices.filter(
@@ -1150,7 +1170,38 @@ async function handleDownloadInvoice(invoice: Invoice) {
         : current,
     )
   }
+function updateQuoteLine(
+  index: number,
+  field: keyof InvoiceLine,
+  value: string,
+) {
+  setQuoteLines((current) =>
+    current.map((line, lineIndex) => {
+      if (lineIndex !== index) return line
 
+      if (field === 'description') {
+        return { ...line, description: value }
+      }
+
+      return { ...line, [field]: Number(value) }
+    }),
+  )
+}
+
+function addQuoteLine() {
+  setQuoteLines((current) => [
+    ...current,
+    { description: '', quantity: 1, unit_price: 0, vat_rate: 20 },
+  ])
+}
+
+function removeQuoteLine(index: number) {
+  setQuoteLines((current) =>
+    current.length > 1
+      ? current.filter((_, lineIndex) => lineIndex !== index)
+      : current,
+  )
+}
   async function handleCreateInvoice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -1293,6 +1344,150 @@ async function handleDownloadInvoice(invoice: Invoice) {
       setIsCreatingInvoice(false)
     }
   }
+
+async function handleCreateQuote(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault()
+
+  if (!supabase || !activeOrganizationId) {
+    setQuoteError('Sélectionnez une entreprise avant de créer un devis.')
+    return
+  }
+
+  if (!selectedQuoteClientId) {
+    setQuoteError('Sélectionnez un client.')
+    return
+  }
+
+  if (quoteValidDays <= 0) {
+    setQuoteError('La durée de validité doit être supérieure à zéro.')
+    return
+  }
+
+  const validLines = quoteLines.filter(
+    (line) =>
+      line.description.trim() &&
+      line.quantity > 0 &&
+      line.unit_price >= 0 &&
+      line.vat_rate >= 0,
+  )
+
+  if (validLines.length === 0 || validLines.length !== quoteLines.length) {
+    setQuoteError('Complétez correctement toutes les lignes du devis.')
+    return
+  }
+
+  setIsCreatingQuote(true)
+  setQuoteError(null)
+
+  let createdQuoteId: string | null = null
+
+  try {
+    const issueDate = getTodayDate()
+    const validUntil = addDaysToDate(issueDate, quoteValidDays)
+    const quoteNumber = `DEV-${new Date().getFullYear()}-${Date.now()}`
+
+    const calculatedSubtotal = validLines.reduce(
+      (sum, line) => sum + line.quantity * line.unit_price,
+      0,
+    )
+
+    const calculatedTax = validLines.reduce(
+      (sum, line) =>
+        sum + line.quantity * line.unit_price * (line.vat_rate / 100),
+      0,
+    )
+
+    const calculatedTotal = calculatedSubtotal + calculatedTax
+
+    const { data: quoteData, error: quoteInsertError } = await supabase
+      .from('quotes')
+      .insert({
+        organization_id: activeOrganizationId,
+        client_id: selectedQuoteClientId,
+        quote_number: quoteNumber,
+        status: 'Brouillon',
+        issue_date: issueDate,
+        valid_until: validUntil,
+        subtotal: calculatedSubtotal,
+        tax_total: calculatedTax,
+        total: calculatedTotal,
+      })
+      .select('id')
+      .single()
+
+    if (quoteInsertError) throw quoteInsertError
+
+    createdQuoteId = quoteData.id
+
+    const itemsToInsert = validLines.map((line) => {
+      const lineHT = line.quantity * line.unit_price
+      const lineTTC = lineHT * (1 + line.vat_rate / 100)
+
+      return {
+        quote_id: quoteData.id,
+        description: line.description.trim(),
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        vat_rate: line.vat_rate,
+        total_ht: lineHT,
+        total_ttc: lineTTC,
+      }
+    })
+
+    const { error: itemsError } = await supabase
+      .from('quote_items')
+      .insert(itemsToInsert)
+
+    if (itemsError) throw itemsError
+
+    setQuotes((current) => [
+      {
+        id: quoteData.id,
+        quote_number: quoteNumber,
+        client_id: selectedQuoteClientId,
+        status: 'Brouillon',
+        issue_date: issueDate,
+        valid_until: validUntil,
+        subtotal: calculatedSubtotal,
+        tax_total: calculatedTax,
+        total: calculatedTotal,
+        converted_invoice_id: null,
+        created_at: new Date().toISOString(),
+      },
+      ...current,
+    ])
+
+    setSelectedQuoteClientId('')
+    setQuoteValidDays(30)
+    setQuoteLines([
+      { description: '', quantity: 1, unit_price: 0, vat_rate: 20 },
+    ])
+    setIsCreateQuoteOpen(false)
+    setActivePage('Devis')
+  } catch (error) {
+    console.error('Erreur de création du devis :', error)
+
+    if (createdQuoteId && supabase) {
+      const { error: deleteError } = await supabase
+        .from('quotes')
+        .delete()
+        .eq('id', createdQuoteId)
+
+      if (deleteError) {
+        console.error(
+          'Suppression du devis incomplet impossible :',
+          deleteError,
+        )
+      }
+    }
+
+    setQuoteError(
+      'Le devis n’a pas pu être enregistré. Vérifiez les tables quotes et quote_items ainsi que leurs règles RLS.',
+    )
+  } finally {
+    setIsCreatingQuote(false)
+  }
+}
 
   async function handleSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
