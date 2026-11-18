@@ -1,8 +1,8 @@
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   color: #17243b;
   background: #f5f7fb;
   font-synthesis: none;
@@ -12,7 +12,7 @@
   --navy: #14213d;
   --blue: #3563e9;
   --blue-dark: #254fc9;
-  --muted: #8490a5;
+  --muted: #64748b;
   --line: #e8edf5;
   --emerald: #3563e9;
 }
@@ -26,9 +26,13 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: #f5f7fb;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: #17233b;
 }
 
-button, input, select {
+button, input, select, textarea {
   font: inherit;
 }
 
@@ -39,6 +43,12 @@ button {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  color: #14213d;
 }
 
 .app-shell {
@@ -63,7 +73,7 @@ a {
   gap: 10px;
   padding: 0 8px;
   color: white;
-  font: 800 21px 'Manrope', sans-serif;
+  font: 800 21px 'Inter', sans-serif;
   letter-spacing: -1px;
 }
 
@@ -108,7 +118,7 @@ a {
   border-radius: 9px;
   color: white;
   background: #3563e9;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -123,15 +133,15 @@ a {
 .workspace-copy strong,
 .profile-copy strong {
   overflow: hidden;
-  font-size: 12px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .workspace-copy small,
 .profile-copy small {
-  color: #9aabc7;
-  font-size: 10px;
+  color: #b0bfd8;
+  font-size: 11px;
 }
 
 .workspace-switcher > svg {
@@ -146,8 +156,8 @@ a {
 
 .nav-heading {
   padding: 0 10px 9px;
-  color: #8292af;
-  font-size: 9px;
+  color: #a0b0ca;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .12em;
 }
@@ -162,17 +172,18 @@ a {
   gap: 11px;
   min-height: 43px;
   padding: 0 12px;
-  color: #a9b7ce;
+  color: #c0cce0;
   background: transparent;
   border: 0;
   border-radius: 8px;
   text-align: left;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   transition: .2s ease;
 }
 
 .nav-link svg {
-  color: #8fa1c0;
+  color: #a9bad5;
 }
 
 .nav-link:hover {
@@ -194,7 +205,7 @@ a {
 .nav-count {
   margin-left: auto;
   color: #d2ddf2;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .sidebar-bottom {
@@ -220,15 +231,15 @@ a {
 }
 
 .help-card strong {
-  font-size: 11px;
+  font-size: 12px;
   color: white;
 }
 
 .help-card p {
   margin: 6px 0 10px;
-  color: #a9b7ce;
-  font-size: 10px;
-  line-height: 1.55;
+  color: #c0cce0;
+  font-size: 11px;
+  line-height: 1.6;
 }
 
 .help-link,
@@ -240,7 +251,7 @@ a {
   color: #82a5ff;
   background: none;
   border: 0;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -264,7 +275,7 @@ a {
   color: #dce5f5;
   background: #263957;
   border-color: #405475;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .plain-icon-button {
@@ -300,8 +311,8 @@ a {
 }
 
 .breadcrumb {
-  color: #737f94;
-  font-size: 11px;
+  color: #64748b;
+  font-size: 13px;
 }
 
 .breadcrumb span {
@@ -319,8 +330,8 @@ a {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #75839a;
-  font-size: 10px;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .online-dot {
@@ -368,28 +379,22 @@ a {
 
 .eyebrow {
   margin: 0 0 8px;
-  color: #8e9aaf;
-  font-size: 9px;
+  color: #64748b;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: .12em;
 }
 
-h1,
-h2 {
-  font-family: 'Manrope', sans-serif;
-}
-
 h1 {
   margin: 0;
-  color: var(--navy);
-  font-size: 26px;
+  font-size: 28px;
   letter-spacing: -.8px;
 }
 
 .welcome-subtitle {
   margin: 7px 0 0;
-  color: #7d899e;
-  font-size: 11px;
+  color: #64748b;
+  font-size: 14px;
 }
 
 .primary-button {
@@ -402,7 +407,7 @@ h1 {
   background: var(--blue);
   border: 0;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   box-shadow: 0 4px 12px #3563e925;
   transition: .2s ease;
@@ -449,8 +454,9 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: #737f94;
-  font-size: 10px;
+  color: #59677e;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .stat-icon {
@@ -486,7 +492,7 @@ h1 {
   display: block;
   margin-top: 13px;
   color: var(--navy);
-  font: 700 23px 'Manrope', sans-serif;
+  font: 700 25px 'Inter', sans-serif;
   letter-spacing: -.6px;
 }
 
@@ -494,8 +500,8 @@ h1 {
   display: flex;
   gap: 5px;
   margin: 7px 0 0;
-  color: #919caf;
-  font-size: 9px;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .positive {
@@ -518,19 +524,19 @@ h1 {
 .modal h2 {
   margin: 0;
   color: var(--navy);
-  font-size: 15px;
+  font-size: 17px;
   letter-spacing: -.3px;
 }
 
 .card-header p {
   margin: 5px 0 0;
-  color: #8995a9;
-  font-size: 10px;
+  color: #64748b;
+  font-size: 13px;
 }
 
 .text-link {
   color: var(--blue);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .table-toolbar {
@@ -565,11 +571,11 @@ h1 {
   background: transparent;
   border: 0;
   outline: 0;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .search-field input::placeholder {
-  color: #a0a9b5;
+  color: #8995a8;
 }
 
 .filter-button {
@@ -577,11 +583,11 @@ h1 {
   align-items: center;
   gap: 10px;
   padding: 0 10px;
-  color: #697588;
+  color: #59677e;
   background: white;
   border: 1px solid var(--line);
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .table-scroll {
@@ -601,10 +607,10 @@ thead {
 
 th {
   padding: 12px 14px;
-  color: #929eb1;
-  font-size: 8px;
+  color: #64748b;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: .08em;
+  letter-spacing: .06em;
 }
 
 th:first-child,
@@ -614,9 +620,9 @@ td:first-child {
 
 td {
   padding: 14px;
-  color: #59677e;
+  color: #475569;
   border-top: 1px solid #eff2f7;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 tbody tr {
@@ -633,7 +639,7 @@ tbody tr:hover {
 }
 
 .muted-cell {
-  color: #8995a8;
+  color: #64748b;
 }
 
 .amount-cell {
@@ -647,7 +653,7 @@ tbody tr:hover {
   gap: 4px;
   padding: 5px 9px;
   border-radius: 20px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -673,7 +679,7 @@ tbody tr:hover {
 
 .empty-row {
   padding: 25px;
-  color: #8791a0;
+  color: #64748b;
   text-align: center;
 }
 
@@ -682,21 +688,21 @@ tbody tr:hover {
   align-items: center;
   justify-content: space-between;
   padding: 13px 20px;
-  color: #8995a8;
+  color: #64748b;
   border-top: 1px solid #eff1f4;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .demo-note {
-  color: #a0a8b4;
+  color: #64748b;
 }
 
 .page-footer {
   display: flex;
   justify-content: space-between;
   padding: 21px 2px 0;
-  color: #9aa3af;
-  font-size: 9px;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .modal-backdrop {
@@ -729,8 +735,8 @@ tbody tr:hover {
 
 .modal-description {
   margin: 12px 0 20px;
-  color: #7d8899;
-  font-size: 11px;
+  color: #64748b;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -743,21 +749,21 @@ tbody tr:hover {
   display: grid;
   gap: 7px;
   color: #475368;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .invoice-form input,
 .invoice-form select {
   width: 100%;
-  min-height: 40px;
+  min-height: 42px;
   padding: 10px 11px;
   color: var(--navy);
   background: white;
   border: 1px solid var(--line);
   border-radius: 7px;
   outline-color: var(--blue);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .invoice-form input:focus,
@@ -780,7 +786,7 @@ tbody tr:hover {
   background: white;
   border: 1px solid var(--line);
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .secondary-button:hover:not(:disabled) {
@@ -790,6 +796,25 @@ tbody tr:hover {
 button:focus-visible {
   outline: 3px solid #3563e955;
   outline-offset: 2px;
+}
+
+/* Lisibilité générale */
+.caption,
+.text-muted,
+small {
+  color: #64748b;
+  font-weight: 500;
+}
+
+input,
+select,
+textarea {
+  color: #17233b;
+}
+
+::placeholder {
+  color: #8490a5;
+  opacity: 1;
 }
 
 @media (max-width: 1000px) {
@@ -854,7 +879,7 @@ button:focus-visible {
   }
 
   h1 {
-    font-size: 21px;
+    font-size: 22px;
   }
 
   .welcome-subtitle {
