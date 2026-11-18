@@ -1363,6 +1363,34 @@ async function handleCreateQuote(event: FormEvent<HTMLFormElement>) {
     return
   }
 
+async function handleUpdateQuoteStatus(
+  quoteId: string,
+  newStatus: QuoteStatus,
+) {
+  if (!supabase) return
+
+  setQuoteError(null)
+
+  const { error } = await supabase
+    .from('quotes')
+    .update({ status: newStatus })
+    .eq('id', quoteId)
+
+  if (error) {
+    console.error('Erreur de modification du statut :', error)
+    setQuoteError('Impossible de modifier le statut du devis.')
+    return
+  }
+
+  setQuotes((current) =>
+    current.map((quote) =>
+      quote.id === quoteId
+        ? { ...quote, status: newStatus }
+        : quote,
+    ),
+  )
+}
+
   const validLines = quoteLines.filter(
     (line) =>
       line.description.trim() &&
