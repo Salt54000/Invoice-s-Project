@@ -1345,7 +1345,62 @@ function App() {
                   <p className="stat-foot">Clients enregistrés</p>
                 </article>
               </section>
+{dashboardStats.overdueCount > 0 && (
+  <section
+    role="alert"
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      padding: 20,
+      marginBottom: 24,
+      background: '#fff1f2',
+      border: '1px solid #fecdd3',
+      borderRadius: 14,
+    }}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <span
+        style={{
+          display: 'grid',
+          placeItems: 'center',
+          width: 44,
+          height: 44,
+          flexShrink: 0,
+          background: '#ffe4e6',
+          color: '#dc2626',
+          borderRadius: 12,
+        }}
+      >
+        <AlertCircle size={23} />
+      </span>
 
+      <div>
+        <strong style={{ color: '#991b1b', fontSize: 16 }}>
+          Attention : factures en retard
+        </strong>
+        <p style={{ margin: '5px 0 0', color: '#7f1d1d', fontSize: 14 }}>
+          {dashboardStats.overdueCount} facture(s) en retard pour un montant
+          total de {formatCurrency(dashboardStats.totalOverdue)}.
+        </p>
+      </div>
+    </div>
+
+    <button
+      className="primary-button"
+      type="button"
+      style={{ background: '#dc2626', borderColor: '#dc2626' }}
+      onClick={() => {
+        setSearch('En retard')
+        setActivePage('Factures')
+      }}
+    >
+      Voir les factures <ArrowRight size={16} />
+    </button>
+  </section>
+)}
               <section className="dashboard-grid">
                 <article className="content-card chart-card">
                   <div className="card-header">
