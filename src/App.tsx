@@ -1547,10 +1547,12 @@ async function handleDownloadInvoice(invoice: Invoice) {
                 </div>
               )}
 
-              <div className="table-footer">
-                <span>{clients.length} client{clients.length > 1 ? 's' : ''}</span>
-                <span>Supabase</span>
-              </div>
+                                <div className="table-footer">
+                    <span>{filteredInvoices.length} facture{filteredInvoices.length > 1 ? 's' : ''}</span>
+                    <span>Enregistrées dans Supabase</span>
+                  </div>
+                </>
+              )}
             </section>
           ) : activePage === 'Factures' ? (
             <section className="content-card">
