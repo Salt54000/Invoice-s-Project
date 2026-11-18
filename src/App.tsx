@@ -1956,12 +1956,26 @@ async function handleCreateQuote(event: FormEvent<HTMLFormElement>) {
             ) : activePage === 'Devis' ? (
  
   <section className="content-card">
-    <div className="card-header">
-      <div>
-        <h2>Mes devis</h2>
-        <p>Les devis enregistrés pour cette entreprise.</p>
-      </div>
-    </div>
+    
+<div className="card-header">
+  <div>
+    <h2>Mes devis</h2>
+    <p>Les devis enregistrés pour cette entreprise.</p>
+  </div>
+
+  <button
+    type="button"
+    className="primary-button"
+    onClick={() => {
+      setQuoteError(null)
+      setIsCreateQuoteOpen(true)
+    }}
+  >
+    <Plus size={18} />
+    Nouveau devis
+  </button>
+</div>
+
 
     {quoteError && <p role="alert">{quoteError}</p>}
 
@@ -2500,6 +2514,220 @@ async function handleCreateQuote(event: FormEvent<HTMLFormElement>) {
           </section>
         </div>
       )}
+
+{/* Fenêtre de création de devis */}
+{isCreateQuoteOpen && (
+  <div
+    className="modal-backdrop"
+    onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !isCreatingQuote) {
+        setIsCreateQuoteOpen(false)
+      }
+    }}
+  >
+    <section
+      className="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quote-modal-title"
+    >
+      <div className="modal-heading">
+        <div>
+          <p className="eyebrow">NOUVEAU DOCUMENT</p>
+          <h2 id="quote-modal-title">Créer un devis</h2>
+        </div>
+        <button
+          className="plain-icon-button"
+          onClick={() => setIsCreateQuoteOpen(false)}
+          type="button"
+          aria-label="Fermer"
+          disabled={isCreatingQuote}
+        >
+          <X size={19} />
+        </button>
+      </div>
+
+      <p className="modal-description">
+        Sélectionnez un client et ajoutez les prestations à proposer.
+      </p>
+
+      <form className="invoice-form" onSubmit={handleCreateQuote}>
+        <label>
+          Client
+          <select
+            required
+            value={selectedQuoteClientId}
+            onChange={(event) => setSelectedQuoteClientId(event.target.value)}
+          >
+            <option value="">Sélectionner un client</option>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Durée de validité
+          <select
+            value={quoteValidDays}
+            onChange={(event) => setQuoteValidDays(Number(event.target.value))}
+          >
+            <option value={15}>15 jours</option>
+            <option value={30}>30 jours</option>
+            <option value={45}>45 jours</option>
+            <option value={60}>60 jours</option>
+            <option value={90}>90 jours</option>
+          </select>
+        </label>
+
+        <p className="modal-description">
+          Date de validité :{' '}
+          <strong>
+            {formatDate(addDaysToDate(getTodayDate(), quoteValidDays))}
+          </strong>
+        </p>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <strong>Lignes du devis</strong>
+          <button className="secondary-button" type="button" onClick={addQuoteLine}>
+            <Plus size={15} /> Ajouter une ligne
+          </button>
+        </div>
+
+        {quoteLines.map((line, index) => (
+          <div
+            key={index}
+            style={{
+              border: '1px solid #e5e7eb',
+              borderRadius: 10,
+              padding: 12,
+              display: 'grid',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong>Ligne {index + 1}</strong>
+              <button
+                className="plain-icon-button"
+                type="button"
+                aria-label={`Supprimer la ligne ${index + 1}`}
+                onClick={() => removeQuoteLine(index)}
+                disabled={quoteLines.length === 1}
+              >
+                <Trash2 size={17} />
+              </button>
+            </div>
+
+            <label>
+              Désignation
+              <input
+                required
+                value={line.description}
+                onChange={(event) =>
+                  updateQuoteLine(index, 'description', event.target.value)
+                }
+                placeholder="Ex. Prestation de conseil"
+              />
+            </label>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+              <label>
+                Quantité
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  required
+                  value={line.quantity}
+                  onChange={(event) =>
+                    updateQuoteLine(index, 'quantity', event.target.value)
+                  }
+                />
+              </label>
+
+              <label>
+                Prix HT (€)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  value={line.unit_price}
+                  onChange={(event) =>
+                    updateQuoteLine(index, 'unit_price', event.target.value)
+                  }
+                />
+              </label>
+
+              <label>
+                TVA (%)
+                <select
+                  value={line.vat_rate}
+                  onChange={(event) =>
+                    updateQuoteLine(index, 'vat_rate', event.target.value)
+                  }
+                >
+                  <option value="0">0 %</option>
+                  <option value="5.5">5,5 %</option>
+                  <option value="10">10 %</option>
+                  <option value="20">20 %</option>
+                </select>
+              </label>
+            </div>
+
+            <p style={{ margin: 0, textAlign: 'right', fontSize: 13 }}>
+              Total ligne TTC :{' '}
+              <strong>
+                {formatCurrency(
+                  line.quantity * line.unit_price * (1 + line.vat_rate / 100),
+                )}
+              </strong>
+            </p>
+          </div>
+        ))}
+
+        <div style={{ background: '#f8fafc', borderRadius: 10, padding: 14, display: 'grid', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Total HT</span>
+            <strong>{formatCurrency(quoteSubtotal)}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Total TVA</span>
+            <strong>{formatCurrency(quoteTaxTotal)}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18 }}>
+            <strong>Total TTC</strong>
+            <strong>{formatCurrency(quoteTotal)}</strong>
+          </div>
+        </div>
+
+        {quoteError && <p role="alert">{quoteError}</p>}
+
+        <div className="modal-actions">
+          <button
+            className="secondary-button"
+            onClick={() => setIsCreateQuoteOpen(false)}
+            type="button"
+            disabled={isCreatingQuote}
+          >
+            Annuler
+          </button>
+
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={isCreatingQuote || !selectedQuoteClientId || quoteTotal <= 0}
+          >
+            <Plus size={17} />
+            {isCreatingQuote ? 'Enregistrement…' : 'Enregistrer le devis'}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+)}
 
       {/* Fenêtre de création de facture */}
       {isCreateOpen && (
