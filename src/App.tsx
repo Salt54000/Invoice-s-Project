@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js'
 import {
   ArrowDownRight,
   ArrowRight,
+  AlertCircle,
   Bell,
   Check,
   ChevronDown,
