@@ -166,9 +166,13 @@ function App() {
   const [activePage, setActivePage] = useState('Vue d’ensemble')
   const [search, setSearch] = useState('')
 
-  const [invoices, setInvoices] = useState<Invoice[]>([])
-  const [isLoadingInvoices, setIsLoadingInvoices] = useState(false)
-  const [invoiceError, setInvoiceError] = useState<string | null>(null)
+ const [invoices, setInvoices] = useState<Invoice[]>([])
+const [isLoadingInvoices, setIsLoadingInvoices] = useState(false)
+const [invoiceError, setInvoiceError] = useState<string | null>(null)
+
+const [quotes, setQuotes] = useState<Quote[]>([])
+const [isLoadingQuotes, setIsLoadingQuotes] = useState(false)
+const [quoteError, setQuoteError] = useState<string | null>(null)
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState('')
