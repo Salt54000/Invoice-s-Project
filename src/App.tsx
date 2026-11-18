@@ -1517,6 +1517,41 @@ async function handleUpdateQuoteStatus(
   )
 }
 
+async function handleConvertQuoteToInvoice(quoteId: string) {
+  if (!supabase) return
+
+  setQuoteError(null)
+
+  const { data, error } = await supabase.rpc(
+    'convert_quote_to_invoice',
+    {
+      p_quote_id: quoteId,
+    },
+  )
+
+  if (error) {
+    console.error('Erreur de conversion du devis :', error)
+    setQuoteError(
+      error.message || 'Impossible de convertir ce devis en facture.',
+    )
+    return
+  }
+
+  setQuotes((current) =>
+    current.map((quote) =>
+      quote.id === quoteId
+        ? {
+            ...quote,
+            status: 'Converti en facture',
+            converted_invoice_id: data,
+          }
+        : quote,
+    ),
+  )
+
+  setActivePage('Factures')
+}
+
 
   async function handleSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
