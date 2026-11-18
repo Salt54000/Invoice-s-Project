@@ -47,6 +47,7 @@ type Organization = {
   id: string
   name: string
   role: string
+  logo_url: string | null
 }
 
 type Client = {
@@ -429,23 +430,28 @@ function App() {
 
       try {
         const { data, error } = await supabase
-          .from('organization_members')
-          .select(`
-            organization_id,
-            role,
-            organizations!organization_members_organization_id_fkey (
-              id,
-              name
-            )
-          `)
+  .from('organization_members')
+  .select(`
+    organization_id,
+    role,
+    organizations!organization_members_organization_id_fkey (
+      id,
+      name,
+      logo_url
+    )
+  `)
 
         if (error) throw error
 
-        const rows = (data ?? []) as unknown as Array<{
-          organization_id: string
-          role: string
-          organizations: { id: string; name: string } | null
-        }>
+       const rows = (data ?? []) as unknown as Array<{
+  organization_id: string
+  role: string
+  organizations: {
+    id: string
+    name: string
+    logo_url: string | null
+  } | null
+}>
 
         const loadedOrganizations = rows
           .filter((row) => row.organizations !== null)
@@ -453,6 +459,7 @@ function App() {
             id: row.organizations!.id,
             name: row.organizations!.name,
             role: row.role,
+            logo_url: row.organizations!.logo_url,
           }))
 
         if (!isMounted) return
