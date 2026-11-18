@@ -17,12 +17,11 @@ import {
   Users,
   X,
   Trash2,
+  TrendingUp,
+  AlertCircle,
+  Wallet,
 } from 'lucide-react'
-import {
-  supabase,
-  testOrganizationsRead,
-  type SupabaseReadTestResult,
-} from './lib/supabase'
+import { supabase } from './lib/supabase'
 
 type InvoiceStatus = 'Payée' | 'En attente' | 'En retard' | 'Brouillon'
 
@@ -31,6 +30,7 @@ type Invoice = {
   number: string
   customer: string
   date: string
+  issueDate: string
   amount: number
   status: InvoiceStatus
 }
@@ -123,10 +123,6 @@ function App() {
   ])
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false)
 
-  const [supabaseTestResult, setSupabaseTestResult] =
-    useState<SupabaseReadTestResult | null>(null)
-  const [isTestingSupabase, setIsTestingSupabase] = useState(false)
-
   const [user, setUser] = useState<User | null>(null)
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking')
   const [authMessage, setAuthMessage] = useState<string | null>(null)
@@ -168,14 +164,100 @@ function App() {
     () =>
       invoiceLines.reduce(
         (sum, line) =>
-          sum +
-          line.quantity * line.unit_price * (line.vat_rate / 100),
+          sum + line.quantity * line.unit_price * (line.vat_rate / 100),
         0,
       ),
     [invoiceLines],
   )
 
   const invoiceTotal = subtotal + taxTotal
+
+  // Calcul des indicateurs du tableau de bord
+  const dashboardStats = useMemo(() => {
+    const issuedInvoices = invoices.filter(
+      (invoice) => invoice.status !== 'Brouillon',
+    )
+
+    const paidInvoices = invoices.filter(
+      (invoice) => invoice.status === 'Payée',
+    )
+
+    const pendingInvoices = invoices.filter(
+      (invoice) => invoice.status === 'En attente',
+    )
+
+    const overdueInvoices = invoices.filter(
+      (invoice) => invoice.status === 'En retard',
+    )
+
+    return {
+      totalInvoiced: issuedInvoices.reduce(
+        (sum, invoice) => sum + invoice.amount,
+        0,
+      ),
+      totalPaid: paidInvoices.reduce(
+        (sum, invoice) => sum + invoice.amount,
+        0,
+      ),
+      totalPending: pendingInvoices.reduce(
+        (sum, invoice) => sum + invoice.amount,
+        0,
+      ),
+      totalOverdue: overdueInvoices.reduce(
+        (sum, invoice) => sum + invoice.amount,
+        0,
+      ),
+      paidCount: paidInvoices.length,
+      pendingCount: pendingInvoices.length,
+      overdueCount: overdueInvoices.length,
+      draftCount: invoices.filter(
+        (invoice) => invoice.status === 'Brouillon',
+      ).length,
+    }
+  }, [invoices])
+
+  // Préparation des données du graphique sur les six derniers mois
+  const monthlyData = useMemo(() => {
+    const today = new Date()
+    const months: Array<{
+      key: string
+      label: string
+      amount: number
+    }> = []
+
+    for (let offset = 5; offset >= 0; offset--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - offset, 1)
+
+      const key = `${date.getFullYear()}-${String(
+        date.getMonth() + 1,
+      ).padStart(2, '0')}`
+
+      const label = new Intl.DateTimeFormat('fr-FR', {
+        month: 'short',
+      }).format(date)
+
+      const amount = invoices
+        .filter((invoice) => {
+          return (
+            invoice.issueDate.startsWith(key) &&
+            invoice.status !== 'Brouillon'
+          )
+        })
+        .reduce((sum, invoice) => sum + invoice.amount, 0)
+
+      months.push({ key, label, amount })
+    }
+
+    const maxAmount = Math.max(...months.map((month) => month.amount), 0)
+
+    return months.map((month) => ({
+      ...month,
+      height:
+        maxAmount > 0
+          ? Math.max((month.amount / maxAmount) * 100, month.amount > 0 ? 4 : 0)
+          : 0,
+    }))
+  }, [invoices])
 
   async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -208,6 +290,7 @@ function App() {
     }
   }
 
+  // Vérification de la session utilisateur
   useEffect(() => {
     if (!supabase) {
       setUser(null)
@@ -348,7 +431,12 @@ function App() {
 
   // Chargement des clients
   useEffect(() => {
-    if (!supabase || authStatus !== 'authenticated' || !user || !activeOrganizationId) {
+    if (
+      !supabase ||
+      authStatus !== 'authenticated' ||
+      !user ||
+      !activeOrganizationId
+    ) {
       setClients([])
       setIsLoadingClients(false)
       return
@@ -386,9 +474,14 @@ function App() {
     }
   }, [authStatus, user?.id, activeOrganizationId])
 
-  // Chargement des factures enregistrées dans Supabase
+  // Chargement des factures depuis Supabase
   useEffect(() => {
-    if (!supabase || authStatus !== 'authenticated' || !user || !activeOrganizationId) {
+    if (
+      !supabase ||
+      authStatus !== 'authenticated' ||
+      !user ||
+      !activeOrganizationId
+    ) {
       setInvoices([])
       setIsLoadingInvoices(false)
       return
@@ -428,6 +521,7 @@ function App() {
             number: row.invoice_number,
             customer: linkedClient?.name ?? 'Client non renseigné',
             date: formatDate(row.issue_date),
+            issueDate: row.issue_date,
             amount: Number(row.total),
             status: statusMap[row.status] ?? 'Brouillon',
           }
@@ -580,14 +674,12 @@ function App() {
 
       const calculatedTax = validLines.reduce(
         (sum, line) =>
-          sum +
-          line.quantity * line.unit_price * (line.vat_rate / 100),
+          sum + line.quantity * line.unit_price * (line.vat_rate / 100),
         0,
       )
 
       const calculatedTotal = calculatedSubtotal + calculatedTax
 
-      // Enregistrement de la facture
       const { data: invoiceData, error: invoiceInsertError } = await supabase
         .from('invoices')
         .insert({
@@ -607,7 +699,6 @@ function App() {
 
       createdInvoiceId = invoiceData.id
 
-      // Enregistrement des lignes de facture
       const itemsToInsert = validLines.map((line) => {
         const lineHT = line.quantity * line.unit_price
         const lineTTC = lineHT * (1 + line.vat_rate / 100)
@@ -637,6 +728,7 @@ function App() {
           number: invoiceNumber,
           customer: client?.name ?? 'Client',
           date: formatDate(issueDate),
+          issueDate,
           amount: calculatedTotal,
           status: 'Brouillon',
         },
@@ -652,8 +744,6 @@ function App() {
     } catch (error) {
       console.error('Erreur de création de la facture :', error)
 
-      // Si les lignes n'ont pas pu être enregistrées,
-      // on tente de supprimer la facture créée pour éviter un document incomplet.
       if (createdInvoiceId && supabase) {
         const { error: deleteError } = await supabase
           .from('invoices')
@@ -661,7 +751,10 @@ function App() {
           .eq('id', createdInvoiceId)
 
         if (deleteError) {
-          console.error('Suppression de la facture incomplète impossible :', deleteError)
+          console.error(
+            'Suppression de la facture incomplète impossible :',
+            deleteError,
+          )
         }
       }
 
@@ -670,23 +763,6 @@ function App() {
       )
     } finally {
       setIsCreatingInvoice(false)
-    }
-  }
-
-  async function handleSupabaseTest() {
-    setIsTestingSupabase(true)
-    setSupabaseTestResult(null)
-
-    try {
-      const result = await testOrganizationsRead()
-      setSupabaseTestResult(result)
-    } catch {
-      setSupabaseTestResult({
-        status: 'read-error',
-        message: 'Le test Supabase a échoué. Réessayez.',
-      })
-    } finally {
-      setIsTestingSupabase(false)
     }
   }
 
@@ -1162,38 +1238,36 @@ function App() {
                 </button>
               </section>
 
-              <div>
-                <button className="secondary-button" disabled={isTestingSupabase} onClick={handleSupabaseTest} type="button">
-                  {isTestingSupabase ? 'Test en cours…' : 'Tester Supabase'}
-                </button>
-                {supabaseTestResult && <p role="status">{supabaseTestResult.message}</p>}
-              </div>
+              {invoiceError && <p role="alert">{invoiceError}</p>}
 
               <section className="stats-grid" aria-label="Indicateurs">
                 <article className="stat-card">
                   <div className="stat-heading">
-                    <span>Montant total des factures</span>
-                    <span className="stat-icon emerald"><ArrowDownRight size={18} /></span>
+                    <span>Montant facturé</span>
+                    <span className="stat-icon emerald"><Wallet size={18} /></span>
                   </div>
-                  <strong className="stat-value">{formatCurrency(invoices.reduce((sum, invoice) => sum + invoice.amount, 0))}</strong>
-                  <p className="stat-foot">Factures enregistrées</p>
+                  <strong className="stat-value">{formatCurrency(dashboardStats.totalInvoiced)}</strong>
+                  <p className="stat-foot">Hors brouillons</p>
                 </article>
+
                 <article className="stat-card">
                   <div className="stat-heading">
-                    <span>Factures en attente</span>
+                    <span>Montant encaissé</span>
+                    <span className="stat-icon emerald"><Check size={18} /></span>
+                  </div>
+                  <strong className="stat-value">{formatCurrency(dashboardStats.totalPaid)}</strong>
+                  <p className="stat-foot">{dashboardStats.paidCount} facture(s) payée(s)</p>
+                </article>
+
+                <article className="stat-card">
+                  <div className="stat-heading">
+                    <span>En attente</span>
                     <span className="stat-icon amber"><Clock3 size={18} /></span>
                   </div>
-                  <strong className="stat-value">{invoices.filter((invoice) => invoice.status === 'En attente').length}</strong>
-                  <p className="stat-foot">À suivre</p>
+                  <strong className="stat-value">{formatCurrency(dashboardStats.totalPending)}</strong>
+                  <p className="stat-foot">{dashboardStats.pendingCount} facture(s) à suivre</p>
                 </article>
-                <article className="stat-card">
-                  <div className="stat-heading">
-                    <span>Factures enregistrées</span>
-                    <span className="stat-icon navy"><FileText size={18} /></span>
-                  </div>
-                  <strong className="stat-value">{invoices.length}</strong>
-                  <p className="stat-foot">Dans Supabase</p>
-                </article>
+
                 <article className="stat-card">
                   <div className="stat-heading">
                     <span>Clients actifs</span>
@@ -1204,7 +1278,121 @@ function App() {
                 </article>
               </section>
 
-              <section className="content-card">
+              <section className="dashboard-grid">
+                <article className="content-card chart-card">
+                  <div className="card-header">
+                    <div>
+                      <h2>Évolution de la facturation</h2>
+                      <p>Montants facturés sur les six derniers mois</p>
+                    </div>
+                    <span className="chart-header-icon"><TrendingUp size={19} /></span>
+                  </div>
+
+                  <div className="chart-total">
+                    <strong>{formatCurrency(dashboardStats.totalInvoiced)}</strong>
+                    <span>Total facturé</span>
+                  </div>
+
+                  <div className="bar-chart" role="img" aria-label="Graphique des montants facturés sur les six derniers mois">
+                    {monthlyData.map((month) => (
+                      <div className="chart-column" key={month.key}>
+                        <div className="chart-bar-area">
+                          {month.amount > 0 && (
+                            <span className="chart-tooltip">{formatCurrency(month.amount)}</span>
+                          )}
+                          <div
+                            className={`chart-bar ${month.amount > 0 ? 'has-value' : ''}`}
+                            style={{ height: `${month.height}%` }}
+                          />
+                        </div>
+                        <span className="chart-month">{month.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="chart-footnote">
+                    Les brouillons ne sont pas inclus dans ce graphique.
+                  </p>
+                </article>
+
+                <article className="content-card status-card">
+                  <div className="card-header">
+                    <div>
+                      <h2>Suivi des factures</h2>
+                      <p>Répartition par statut</p>
+                    </div>
+                    <span className="chart-header-icon"><FileText size={19} /></span>
+                  </div>
+
+                  <div className="status-total">
+                    <strong>{invoices.length}</strong>
+                    <span>Factures au total</span>
+                  </div>
+
+                  <div className="status-progress">
+                    <div
+                      className="status-progress-paid"
+                      style={{
+                        width: `${invoices.length ? (dashboardStats.paidCount / invoices.length) * 100 : 0}%`,
+                      }}
+                    />
+                    <div
+                      className="status-progress-pending"
+                      style={{
+                        width: `${invoices.length ? (dashboardStats.pendingCount / invoices.length) * 100 : 0}%`,
+                      }}
+                    />
+                    <div
+                      className="status-progress-overdue"
+                      style={{
+                        width: `${invoices.length ? (dashboardStats.overdueCount / invoices.length) * 100 : 0}%`,
+                      }}
+                    />
+                    <div
+                      className="status-progress-draft"
+                      style={{
+                        width: `${invoices.length ? (dashboardStats.draftCount / invoices.length) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="status-list">
+                    <div className="status-item">
+                      <span className="status-label">
+                        <span className="status-dot paid-dot" /> Payées
+                      </span>
+                      <strong>{dashboardStats.paidCount}</strong>
+                      <span className="status-amount">{formatCurrency(dashboardStats.totalPaid)}</span>
+                    </div>
+
+                    <div className="status-item">
+                      <span className="status-label">
+                        <span className="status-dot pending-dot" /> En attente
+                      </span>
+                      <strong>{dashboardStats.pendingCount}</strong>
+                      <span className="status-amount">{formatCurrency(dashboardStats.totalPending)}</span>
+                    </div>
+
+                    <div className="status-item">
+                      <span className="status-label">
+                        <span className="status-dot overdue-dot" /> En retard
+                      </span>
+                      <strong>{dashboardStats.overdueCount}</strong>
+                      <span className="status-amount">{formatCurrency(dashboardStats.totalOverdue)}</span>
+                    </div>
+
+                    <div className="status-item">
+                      <span className="status-label">
+                        <span className="status-dot draft-dot" /> Brouillons
+                      </span>
+                      <strong>{dashboardStats.draftCount}</strong>
+                      <span className="status-amount">—</span>
+                    </div>
+                  </div>
+                </article>
+              </section>
+
+              <section className="content-card recent-invoices-card">
                 <div className="card-header">
                   <div>
                     <h2>Factures récentes</h2>
@@ -1215,27 +1403,35 @@ function App() {
                   </button>
                 </div>
 
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr><th>NUMÉRO</th><th>CLIENT</th><th>DATE D’ÉMISSION</th><th>MONTANT TTC</th><th>STATUT</th></tr>
-                    </thead>
-                    <tbody>
-                      {invoices.slice(0, 5).map((invoice) => (
-                        <tr key={invoice.id}>
-                          <td className="invoice-number">{invoice.number}</td>
-                          <td>{invoice.customer}</td>
-                          <td className="muted-cell">{invoice.date}</td>
-                          <td className="amount-cell">{formatCurrency(invoice.amount)}</td>
-                          <td><span className={`status-badge ${invoice.status.toLowerCase().replace(' ', '-')}`}>{invoice.status}</span></td>
-                        </tr>
-                      ))}
-                      {invoices.length === 0 && (
-                        <tr><td className="empty-row" colSpan={5}>Aucune facture enregistrée pour le moment.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                {isLoadingInvoices ? (
+                  <p className="empty-row">Chargement des factures…</p>
+                ) : (
+                  <div className="table-scroll">
+                    <table>
+                      <thead>
+                        <tr><th>NUMÉRO</th><th>CLIENT</th><th>DATE D’ÉMISSION</th><th>MONTANT TTC</th><th>STATUT</th></tr>
+                      </thead>
+                      <tbody>
+                        {invoices.slice(0, 5).map((invoice) => (
+                          <tr key={invoice.id}>
+                            <td className="invoice-number">{invoice.number}</td>
+                            <td>{invoice.customer}</td>
+                            <td className="muted-cell">{invoice.date}</td>
+                            <td className="amount-cell">{formatCurrency(invoice.amount)}</td>
+                            <td>
+                              <span className={`status-badge ${invoice.status.toLowerCase().replace(' ', '-')}`}>
+                                {invoice.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                        {invoices.length === 0 && (
+                          <tr><td className="empty-row" colSpan={5}>Aucune facture enregistrée pour le moment.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </section>
             </>
           )}
