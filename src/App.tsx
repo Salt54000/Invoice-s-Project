@@ -631,25 +631,235 @@ function App() {
     }
   }, [authStatus, user?.id, activeOrganizationId, clients])
 
-  const filteredInvoices = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('fr')
-    if (!query) return invoices
-  function escapeHtml(value: string | number | null | undefined) {
-    return String(value ?? '').replace(/[&<>"']/g, (character) => {
-      const entities: Record<string, string> = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;',
-      }
+  
+const filteredInvoices = useMemo(() => {
+  const query = search.trim().toLocaleLowerCase('fr')
 
-      return entities[character]
-    })
+  if (!query) return invoices
+
+  return invoices.filter((invoice) =>
+    `${invoice.number} ${invoice.customer} ${invoice.status}`
+      .toLocaleLowerCase('fr')
+      .includes(query),
+  )
+}, [invoices, search])
+
+function escapeHtml(value: string | number | null | undefined) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+    }
+
+    return entities[character]
+  })
+}
+
+async function handleDownloadInvoice(invoice: Invoice) {
+  if (!supabase) return
+
+  const printWindow = window.open('', '_blank')
+
+  if (!printWindow) {
+    alert('Autorisez les fenêtres pop-up pour télécharger votre facture.')
+    return
   }
 
-  async function handleDownloadInvoice(invoice: Invoice) {
-    if (!supabase) return
+  try {
+    const { data: items, error } = await supabase
+      .from('invoice_items')
+      .select('description, quantity, unit_price, vat_rate, total_ht, total_ttc')
+      .eq('invoice_id', invoice.id)
+
+    if (error) throw error
+
+    const client = clients.find((item) => item.name === invoice.customer)
+    const organization = organizations.find(
+      (item) => item.id === activeOrganizationId,
+    )
+
+    const lines = (items ?? []).map((item) => `
+      <tr>
+        <td>${escapeHtml(item.description)}</td>
+        <td>${item.quantity}</td>
+        <td>${formatCurrency(Number(item.unit_price))}</td>
+        <td>${Number(item.vat_rate)} %</td>
+        <td>${formatCurrency(Number(item.total_ht))}</td>
+        <td>${formatCurrency(Number(item.total_ttc))}</td>
+      </tr>
+    `).join('')
+
+    const subtotal = (items ?? []).reduce(
+      (sum, item) => sum + Number(item.total_ht),
+      0,
+    )
+
+    const taxTotal = (items ?? []).reduce(
+      (sum, item) =>
+        sum + Number(item.total_ht) * Number(item.vat_rate) / 100,
+      0,
+    )
+
+    const total = (items ?? []).reduce(
+      (sum, item) => sum + Number(item.total_ttc),
+      0,
+    )
+
+    printWindow.document.open()
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <title>Facture ${escapeHtml(invoice.number)}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            color: #1e293b;
+            padding: 40px;
+            max-width: 850px;
+            margin: auto;
+          }
+          h1 { color: #2563eb; }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 25px;
+          }
+          .details {
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+            margin: 35px 0;
+          }
+          .box { flex: 1; }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+          }
+          th, td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+          }
+          th { background: #f1f5f9; }
+          .number { text-align: right; }
+          .totals {
+            width: 300px;
+            margin-left: auto;
+            margin-top: 25px;
+          }
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+          }
+          .grand-total {
+            border-top: 2px solid #1e293b;
+            margin-top: 8px;
+            padding-top: 15px;
+            font-size: 20px;
+            font-weight: bold;
+          }
+          footer {
+            margin-top: 60px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+            color: #64748b;
+            font-size: 12px;
+          }
+          @media print {
+            body { padding: 10px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1>${escapeHtml(organization?.name ?? 'Mon entreprise')}</h1>
+            <p>Document établi avec FacturPro</p>
+          </div>
+          <div>
+            <h2>FACTURE</h2>
+            <strong>${escapeHtml(invoice.number)}</strong>
+            <p>Émise le : ${escapeHtml(invoice.date)}</p>
+            <p>Échéance : ${invoice.dueDate ? escapeHtml(formatDate(invoice.dueDate)) : '—'}</p>
+            <p>Statut : ${escapeHtml(invoice.status)}</p>
+          </div>
+        </div>
+
+        <div class="details">
+          <div class="box">
+            <strong>FACTURÉ À</strong>
+            <p>${escapeHtml(client?.name ?? invoice.customer)}</p>
+            <p>${escapeHtml(client?.address)}</p>
+            <p>${escapeHtml([client?.postal_code, client?.city].filter(Boolean).join(' '))}</p>
+            <p>${escapeHtml(client?.country)}</p>
+            <p>${escapeHtml(client?.email)}</p>
+            <p>${escapeHtml(client?.siret ? `SIRET : ${client.siret}` : '')}</p>
+            <p>${escapeHtml(client?.vat_number ? `TVA : ${client.vat_number}` : '')}</p>
+          </div>
+          <div class="box">
+            <strong>INFORMATIONS</strong>
+            <p>Numéro : ${escapeHtml(invoice.number)}</p>
+            <p>Date : ${escapeHtml(invoice.date)}</p>
+          </div>
+        </div>
+
+        <h2>Détail de la facture</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>DÉSIGNATION</th>
+              <th>QTÉ</th>
+              <th>PRIX HT</th>
+              <th>TVA</th>
+              <th>TOTAL HT</th>
+              <th>TOTAL TTC</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lines || '<tr><td colspan="6">Aucune ligne disponible</td></tr>'}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <div class="total-row">
+            <span>Total HT</span>
+            <strong>${formatCurrency(subtotal)}</strong>
+          </div>
+          <div class="total-row">
+            <span>Total TVA</span>
+            <strong>${formatCurrency(taxTotal)}</strong>
+          </div>
+          <div class="total-row grand-total">
+            <span>Total TTC</span>
+            <strong>${formatCurrency(total)}</strong>
+          </div>
+        </div>
+
+        <footer>Document généré avec FacturPro.</footer>
+      </body>
+      </html>
+    `)
+
+    printWindow.document.close()
+
+    printWindow.onload = () => {
+      printWindow.focus()
+      printWindow.print()
+    }
+  } catch (error) {
+    console.error('Erreur de génération du PDF :', error)
+    printWindow.close()
+    alert('Impossible de préparer le PDF de cette facture.')
+  }
+}
 
     // Ouvrir la fenêtre immédiatement pour éviter le blocage des pop-ups
     const printWindow = window.open('', '_blank')
