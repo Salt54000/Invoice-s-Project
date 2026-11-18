@@ -346,6 +346,11 @@ const [logoSuccess, setLogoSuccess] = useState<string | null>(null)
 const handleLogoUpload = async (
   event: React.ChangeEvent<HTMLInputElement>
 ) => {
+  if (!supabase) {
+    setLogoError('La connexion à Supabase est indisponible.')
+    return
+  }
+
   const file = event.target.files?.[0]
 
   if (!file || !activeOrganizationId) return
