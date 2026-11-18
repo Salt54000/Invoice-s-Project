@@ -947,3 +947,270 @@ textarea {
     padding: 19px;
   }
 }
+
+/* Tableau de bord : graphiques */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.chart-card,
+.status-card {
+  min-width: 0;
+  padding-bottom: 18px;
+}
+
+.chart-header-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: #3563e9;
+  background: #edf2ff;
+  border-radius: 10px;
+}
+
+.chart-total,
+.status-total {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 20px;
+}
+
+.chart-total strong {
+  color: #14213d;
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.chart-total span,
+.status-total span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 12px;
+  height: 190px;
+  margin: 20px 20px 0;
+  padding: 12px 10px 0;
+  border-bottom: 1px solid #e8edf5;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 45px,
+    #eef1f6 46px,
+    transparent 47px
+  );
+}
+
+.chart-column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  min-width: 0;
+}
+
+.chart-bar-area {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.chart-bar {
+  width: min(42px, 65%);
+  min-height: 0;
+  background: #dce5fa;
+  border-radius: 7px 7px 0 0;
+  transition: height .3s ease, background .2s ease;
+}
+
+.chart-bar.has-value {
+  background: linear-gradient(180deg, #5b83f2, #3563e9);
+}
+
+.chart-column:hover .chart-bar.has-value {
+  background: #254fc9;
+}
+
+.chart-tooltip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  z-index: 1;
+  padding: 5px 7px;
+  color: white;
+  background: #14213d;
+  border-radius: 5px;
+  font-size: 10px;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity .2s ease;
+}
+
+.chart-column:hover .chart-tooltip {
+  opacity: 1;
+}
+
+.chart-month {
+  margin-top: 9px;
+  color: #64748b;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.chart-footnote {
+  margin: 12px 20px 0;
+  color: #8490a5;
+  font-size: 11px;
+}
+
+.status-total {
+  margin: 4px 0 16px;
+}
+
+.status-total strong {
+  color: #14213d;
+  font-size: 27px;
+  font-weight: 700;
+}
+
+.status-progress {
+  display: flex;
+  overflow: hidden;
+  height: 10px;
+  margin: 0 20px 20px;
+  background: #eef1f6;
+  border-radius: 20px;
+}
+
+.status-progress-paid {
+  background: #20ad7b;
+}
+
+.status-progress-pending {
+  background: #e8ad45;
+}
+
+.status-progress-overdue {
+  background: #e47768;
+}
+
+.status-progress-draft {
+  background: #a7b1c2;
+}
+
+.status-list {
+  display: grid;
+  gap: 0;
+  padding: 0 20px;
+}
+
+.status-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px minmax(85px, auto);
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid #eef1f6;
+  font-size: 12px;
+}
+
+.status-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.paid-dot {
+  background: #20ad7b;
+}
+
+.pending-dot {
+  background: #e8ad45;
+}
+
+.overdue-dot {
+  background: #e47768;
+}
+
+.draft-dot {
+  background: #a7b1c2;
+}
+
+.status-item strong {
+  color: #14213d;
+  text-align: right;
+  font-size: 13px;
+}
+
+.status-amount {
+  color: #64748b;
+  text-align: right;
+  font-size: 11px;
+}
+
+.recent-invoices-card {
+  margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .dashboard-grid {
+    gap: 12px;
+  }
+
+  .bar-chart {
+    height: 165px;
+    gap: 5px;
+    margin-right: 12px;
+    margin-left: 12px;
+  }
+
+  .chart-total,
+  .status-total {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .chart-footnote {
+    margin-right: 14px;
+    margin-left: 14px;
+  }
+
+  .status-progress {
+    margin-right: 14px;
+    margin-left: 14px;
+  }
+
+  .status-list {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+}
