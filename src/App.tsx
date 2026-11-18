@@ -2049,11 +2049,27 @@ async function handleUpdateQuoteStatus(
                     <td className="amount-cell">
                       {formatCurrency(quote.total)}
                     </td>
-                    <td>
-                      <span className={`status-badge ${quote.status.toLowerCase().replaceAll(' ', '-')}`}>
-                        {quote.status}
-                      </span>
-                    </td>
+                    
+<td>
+  <select
+    value={quote.status}
+    onChange={(event) =>
+      handleUpdateQuoteStatus(
+        quote.id,
+        event.target.value as QuoteStatus,
+      )
+    }
+    disabled={quote.status === 'Converti en facture'}
+    aria-label={`Statut du devis ${quote.quote_number}`}
+  >
+    <option value="Brouillon">Brouillon</option>
+    <option value="Envoyé">Envoyé</option>
+    <option value="Accepté">Accepté</option>
+    <option value="Refusé">Refusé</option>
+    <option value="Expiré">Expiré</option>
+  </select>
+</td>
+
                   </tr>
                 )
               })}
