@@ -1329,14 +1329,23 @@ function removeQuoteLine(index: number) {
           .delete()
           .eq('id', createdInvoiceId)
 
-        if (deleteError) {
+                if (deleteError) {
           console.error(
             'Suppression de la facture incomplète impossible :',
             deleteError,
           )
         }
+      }
 
-async function handleCreateQuote(event: FormEvent<HTMLFormElement>) {
+      setInvoiceError(
+        'La facture n’a pas pu être enregistrée. Vérifiez les tables invoices et invoice_items ainsi que leurs règles RLS.',
+      )
+    } finally {
+      setIsCreatingInvoice(false)
+    }
+  }
+
+  async function handleCreateQuote(event: FormEvent<HTMLFormElement>) {
   event.preventDefault()
 
   if (!supabase || !activeOrganizationId) {
