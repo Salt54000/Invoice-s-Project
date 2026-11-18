@@ -1645,7 +1645,20 @@ async function handleDownloadInvoice(invoice: Invoice) {
                   </>
                )}
             </section>
-             ) : activePage === 'Paramètres' ? (
+            ) : activePage === 'Devis' ? (
+  <section className="content-card">
+    <div className="card-header">
+      <div>
+        <h2>Mes devis</h2>
+        <p>Les devis enregistrés pour cette entreprise.</p>
+      </div>
+    </div>
+
+    <p className="empty-row">
+      Aucun devis à afficher pour le moment.
+    </p>
+  </section>
+) : activePage === 'Paramètres' ? (
   <section className="settings-page">
     <div className="page-heading">
       <div>
