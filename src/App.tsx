@@ -1809,11 +1809,24 @@ async function handleDownloadInvoice(invoice: Invoice) {
                             <td>{invoice.customer}</td>
                             <td className="muted-cell">{invoice.date}</td>
                             <td className="amount-cell">{formatCurrency(invoice.amount)}</td>
-                            <td>
-                              <span className={`status-badge ${invoice.status.toLowerCase().replace(' ', '-')}`}>
-                                {invoice.status === 'Payée' && <Check size={12} />}
-                                {invoice.status}
-                              </span>
+                            
+<td>
+  <span className={`status-badge ${invoice.status.toLowerCase().replace(' ', '-')}`}>
+    {invoice.status === 'Payée' && <Check size={12} />}
+    {invoice.status}
+  </span>
+</td>
+<td>
+  <button
+    className="secondary-button"
+    type="button"
+    onClick={() => handleDownloadInvoice(invoice)}
+    title="Télécharger la facture en PDF"
+  >
+    <FileText size={15} /> PDF
+  </button>
+</td>
+
                               <td>
   <button
     className="secondary-button"
