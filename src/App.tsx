@@ -1641,11 +1641,8 @@ async function handleDownloadInvoice(invoice: Invoice) {
                     <span>{filteredInvoices.length} facture{filteredInvoices.length > 1 ? 's' : ''}</span>
                     <span>Enregistrées dans Supabase</span>
                   </div>
-                </>
-              )}
+                              )}
             </section>
-          ) : (
-            <>
              ) : activePage === 'Paramètres' ? (
   <section className="settings-page">
     <div className="page-heading">
