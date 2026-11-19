@@ -260,7 +260,12 @@ const [logoSuccess, setLogoSuccess] = useState<string | null>(null)
   const [newClientName, setNewClientName] = useState('')
   const [newClientEmail, setNewClientEmail] = useState('')
   const [newClientPhone, setNewClientPhone] = useState('')
+  const [newClientAddress, setNewClientAddress] = useState('')
+const [newClientPostalCode, setNewClientPostalCode] = useState('')
+const [newClientCity, setNewClientCity] = useState('')
   const [isCreatingClient, setIsCreatingClient] = useState(false)
+  const [editingClient, setEditingClient] = useState<Client | null>(null)
+const [isUpdatingClient, setIsUpdatingClient] = useState(false)
 
   const subtotal = useMemo(
     () =>
@@ -1588,11 +1593,14 @@ async function handleDownloadQuote(quote: Quote) {
       const { data, error } = await supabase
         .from('clients')
         .insert({
-          organization_id: activeOrganizationId,
-          name: newClientName.trim(),
-          email: newClientEmail.trim() || null,
-          phone: newClientPhone.trim() || null,
-        })
+  organization_id: activeOrganizationId,
+  name: newClientName.trim(),
+  email: newClientEmail.trim() || null,
+  phone: newClientPhone.trim() || null,
+  address: newClientAddress.trim() || null,
+  postal_code: newClientPostalCode.trim() || null,
+  city: newClientCity.trim() || null,
+})
         .select('*')
         .single()
 
@@ -1607,6 +1615,9 @@ async function handleDownloadQuote(quote: Quote) {
       setNewClientName('')
       setNewClientEmail('')
       setNewClientPhone('')
+      setNewClientAddress('')
+setNewClientPostalCode('')
+setNewClientCity('')
       setIsCreateClientOpen(false)
     } catch (error) {
       console.error(error)
@@ -1615,7 +1626,49 @@ async function handleDownloadQuote(quote: Quote) {
       setIsCreatingClient(false)
     }
   }
+async function handleUpdateClient(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault()
 
+  if (!supabase || !editingClient || !newClientName.trim()) {
+    setClientError('Le nom du client est obligatoire.')
+    return
+  }
+
+  setIsUpdatingClient(true)
+  setClientError(null)
+
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .update({
+        name: newClientName.trim(),
+        email: newClientEmail.trim() || null,
+        phone: newClientPhone.trim() || null,
+        address: newClientAddress.trim() || null,
+        postal_code: newClientPostalCode.trim() || null,
+        city: newClientCity.trim() || null,
+      })
+      .eq('id', editingClient.id)
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    setClients((current) =>
+      current.map((client) =>
+        client.id === editingClient.id ? (data as Client) : client,
+      ),
+    )
+
+    setEditingClient(null)
+    setClientError(null)
+  } catch (error) {
+    console.error('Erreur de modification du client :', error)
+    setClientError('Impossible de modifier le client. Réessayez.')
+  } finally {
+    setIsUpdatingClient(false)
+  }
+}
   function updateInvoiceLine(
     index: number,
     field: keyof InvoiceLine,
@@ -2391,9 +2444,16 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
                   type="button"
                   disabled={!activeOrganizationId}
                   onClick={() => {
-                    setClientError(null)
-                    setIsCreateClientOpen(true)
-                  }}
+  setEditingClient(null)
+  setNewClientName('')
+  setNewClientEmail('')
+  setNewClientPhone('')
+  setNewClientAddress('')
+  setNewClientPostalCode('')
+  setNewClientCity('')
+  setClientError(null)
+  setIsCreateClientOpen(true)
+}}
                 >
                   <Plus size={18} /> Ajouter un client
                 </button>
@@ -2409,16 +2469,35 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
                 <div className="table-scroll">
                   <table>
                     <thead>
-                      <tr><th>NOM</th><th>EMAIL</th><th>TÉLÉPHONE</th><th>VILLE</th></tr>
+                      <tr><th>NOM</th><th>EMAIL</th><th>TÉLÉPHONE</th><th>VILLE</th><th>ACTION</th></tr>
                     </thead>
                     <tbody>
                       {clients.map((client) => (
-                        <tr key={client.id}>
-                          <td>{client.name}</td>
-                          <td>{client.email ?? '—'}</td>
-                          <td>{client.phone ?? '—'}</td>
-                          <td>{client.city ?? '—'}</td>
-                        </tr>
+                       <tr key={client.id}>
+  <td>{client.name}</td>
+  <td>{client.email ?? '—'}</td>
+  <td>{client.phone ?? '—'}</td>
+  <td>{client.city ?? '—'}</td>
+  <td>
+    <button
+      className="secondary-button"
+      type="button"
+      onClick={() => {
+        setEditingClient(client)
+        setIsCreateClientOpen(true)
+        setNewClientName(client.name)
+        setNewClientEmail(client.email ?? '')
+        setNewClientPhone(client.phone ?? '')
+        setNewClientAddress(client.address ?? '')
+        setNewClientPostalCode(client.postal_code ?? '')
+        setNewClientCity(client.city ?? '')
+        setClientError(null)
+      }}
+    >
+      Modifier
+    </button>
+  </td>
+</tr>
                       ))}
                     </tbody>
                   </table>
@@ -3197,7 +3276,10 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
               </button>
             </div>
             <p className="modal-description">Enregistrez les coordonnées de votre nouveau client.</p>
-            <form className="invoice-form" onSubmit={handleCreateClient}>
+            <form
+  className="invoice-form"
+  onSubmit={editingClient ? handleUpdateClient : handleCreateClient}
+>
               <label>
                 Nom du client
                 <input autoFocus required maxLength={200} value={newClientName} onChange={(event) => setNewClientName(event.target.value)} placeholder="Ex. Société Martin" />
@@ -3210,11 +3292,38 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
                 Téléphone
                 <input type="tel" value={newClientPhone} onChange={(event) => setNewClientPhone(event.target.value)} placeholder="06 00 00 00 00" />
               </label>
+              <label>
+  Adresse
+  <input
+    value={newClientAddress}
+    onChange={(event) => setNewClientAddress(event.target.value)}
+    placeholder="12 rue de Paris"
+  />
+</label>
+<label>
+  Code postal
+  <input
+    value={newClientPostalCode}
+    onChange={(event) => setNewClientPostalCode(event.target.value)}
+    placeholder="75001"
+  />
+</label>
+<label>
+  Ville
+  <input
+    value={newClientCity}
+    onChange={(event) => setNewClientCity(event.target.value)}
+    placeholder="Paris"
+  />
+</label>
               {clientError && <p role="alert">{clientError}</p>}
               <div className="modal-actions">
                 <button className="secondary-button" type="button" onClick={() => setIsCreateClientOpen(false)}>Annuler</button>
                 <button className="primary-button" type="submit" disabled={isCreatingClient || !newClientName.trim()}>
-                  <Plus size={17} /> {isCreatingClient ? 'Enregistrement…' : 'Enregistrer le client'}
+                  <Plus size={17} />
+{editingClient
+  ? isUpdatingClient ? 'Modification…' : 'Modifier le client'
+  : isCreatingClient ? 'Enregistrement…' : 'Enregistrer le client'}
                 </button>
               </div>
             </form>
