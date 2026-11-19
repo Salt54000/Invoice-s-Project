@@ -43,7 +43,35 @@ export function escapeXml(value: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;')
 }
+export function normalizeCountryCode(country: string | null): string {
+  if (!country) return 'FR'
 
+  const normalized = country.trim().toLowerCase()
+
+  const countries: Record<string, string> = {
+    france: 'FR',
+    fr: 'FR',
+    belgique: 'BE',
+    belgium: 'BE',
+    be: 'BE',
+    luxembourg: 'LU',
+    lu: 'LU',
+    allemagne: 'DE',
+    germany: 'DE',
+    de: 'DE',
+    espagne: 'ES',
+    spain: 'ES',
+    es: 'ES',
+    italie: 'IT',
+    italy: 'IT',
+    it: 'IT',
+    suisse: 'CH',
+    switzerland: 'CH',
+    ch: 'CH',
+  }
+
+  return countries[normalized] ?? country.trim().toUpperCase()
+}
 export function validateFacturXInvoice(
   invoice: FacturXInvoiceData,
 ): string[] {
@@ -114,12 +142,12 @@ export function validateFacturXTotals(
   )
 
   const calculatedTax = roundMoney(
-    invoice.lines.reduce(
-      (sum, line) =>
-        sum + line.totalHT * line.vatRate / 100,
-      0,
-    ),
-  )
+  invoice.lines.reduce(
+    (sum, line) =>
+      sum + roundMoney(line.totalHT * line.vatRate / 100),
+    0,
+  ),
+)
 
   const calculatedTotal = roundMoney(
     invoice.lines.reduce((sum, line) => sum + line.totalTTC, 0),
@@ -284,7 +312,7 @@ export function generateFacturXXml(
   <ram:LineOne>${escapeXml(invoice.seller.address)}</ram:LineOne>
   <ram:PostcodeCode>${escapeXml(invoice.seller.postalCode ?? '')}</ram:PostcodeCode>
   <ram:CityName>${escapeXml(invoice.seller.city ?? '')}</ram:CityName>
-  <ram:CountryID>${escapeXml(invoice.seller.country ?? 'FR')}</ram:CountryID>
+  <ram:CountryID>${normalizeCountryCode(invoice.seller.country)}</ram:CountryID>
 </ram:PostalTradeAddress>` : ''}
   ${invoice.seller.siret ? `
   <ram:SpecifiedLegalOrganization>
@@ -302,7 +330,7 @@ export function generateFacturXXml(
   <ram:LineOne>${escapeXml(invoice.buyer.address)}</ram:LineOne>
   <ram:PostcodeCode>${escapeXml(invoice.buyer.postalCode ?? '')}</ram:PostcodeCode>
   <ram:CityName>${escapeXml(invoice.buyer.city ?? '')}</ram:CityName>
-  <ram:CountryID>${escapeXml(invoice.buyer.country ?? 'FR')}</ram:CountryID>
+  <ram:CountryID>${normalizeCountryCode(invoice.buyer.country)}</ram:CountryID>
 </ram:PostalTradeAddress>` : ''}
   ${invoice.buyer.siret ? `
   <ram:SpecifiedLegalOrganization>
