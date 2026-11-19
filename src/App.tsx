@@ -78,6 +78,13 @@ type Organization = {
   id: string
   name: string
   role: string
+  siret: string | null
+  siren: string | null
+  vat_number: string | null
+  address: string | null
+  postal_code: string | null
+  city: string | null
+  country: string | null
   logo_url: string | null
 }
 
@@ -203,6 +210,17 @@ const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
   const [organizations, setOrganizations] = useState<Organization[]>([])
+  const [companySiret, setCompanySiret] = useState('')
+const [companySiren, setCompanySiren] = useState('')
+const [companyVatNumber, setCompanyVatNumber] = useState('')
+const [companyAddress, setCompanyAddress] = useState('')
+const [companyPostalCode, setCompanyPostalCode] = useState('')
+const [companyCity, setCompanyCity] = useState('')
+const [companyCountry, setCompanyCountry] = useState('France')
+
+const [companyInfoError, setCompanyInfoError] = useState('')
+const [companyInfoSuccess, setCompanyInfoSuccess] = useState('')
+const [isSavingCompanyInfo, setIsSavingCompanyInfo] = useState(false)
   const [activeOrganizationId, setActiveOrganizationId] = useState('')
   const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
   const [organizationError, setOrganizationError] = useState<string | null>(null)
@@ -497,9 +515,73 @@ const handleLogoUpload = async (
   } finally {
     setIsUploadingLogo(false)
     event.target.value = ''
+
   }
 }
-  // Vérification de la session utilisateur
+
+async function handleSaveCompanyInfo() {
+  if (!supabase || !activeOrganizationId) {
+    setCompanyInfoError('Aucune entreprise sélectionnée.')
+    return
+  }
+
+  const organization = organizations.find(
+    (org) => org.id === activeOrganizationId
+  )
+
+  if (!organization || !['owner', 'admin'].includes(organization.role)) {
+    setCompanyInfoError("Tu n'as pas les droits nécessaires pour modifier ces informations.")
+    return
+  }
+
+  setCompanyInfoError('')
+  setCompanyInfoSuccess('')
+  setIsSavingCompanyInfo(true)
+
+  try {
+    const { error } = await supabase
+      .from('organizations')
+      .update({
+        siret: companySiret.trim() || null,
+        siren: companySiren.trim() || null,
+        vat_number: companyVatNumber.trim() || null,
+        address: companyAddress.trim() || null,
+        postal_code: companyPostalCode.trim() || null,
+        city: companyCity.trim() || null,
+        country: companyCountry.trim() || null,
+      })
+      .eq('id', activeOrganizationId)
+
+    if (error) throw error
+
+    setOrganizations((current) =>
+      current.map((org) =>
+        org.id === activeOrganizationId
+          ? {
+              ...org,
+              siret: companySiret.trim() || null,
+              siren: companySiren.trim() || null,
+              vat_number: companyVatNumber.trim() || null,
+              address: companyAddress.trim() || null,
+              postal_code: companyPostalCode.trim() || null,
+              city: companyCity.trim() || null,
+              country: companyCountry.trim() || null,
+            }
+          : org
+      )
+    )
+
+    setCompanyInfoSuccess('Informations de l’entreprise enregistrées avec succès.')
+  } catch (error) {
+    console.error("Erreur lors de l'enregistrement des informations :", error)
+    setCompanyInfoError("Impossible d'enregistrer les informations de l'entreprise.")
+  } finally {
+    setIsSavingCompanyInfo(false)
+  }
+}
+
+// Vérification de la session utilisateur
+
   useEffect(() => {
     if (!supabase) {
       setUser(null)
@@ -593,32 +675,52 @@ const handleLogoUpload = async (
     organization_id,
     role,
     organizations!organization_members_organization_id_fkey (
-      id,
-      name,
-      logo_url
-    )
+  id,
+  name,
+  siret,
+  siren,
+  vat_number,
+  address,
+  postal_code,
+  city,
+  country,
+  logo_url
+)
   `)
 
         if (error) throw error
 
-       const rows = (data ?? []) as unknown as Array<{
+      const rows = (data ?? []) as unknown as Array<{
   organization_id: string
   role: string
   organizations: {
     id: string
     name: string
+    siret: string | null
+    siren: string | null
+    vat_number: string | null
+    address: string | null
+    postal_code: string | null
+    city: string | null
+    country: string | null
     logo_url: string | null
   } | null
 }>
-
         const loadedOrganizations = rows
-          .filter((row) => row.organizations !== null)
-          .map((row) => ({
-            id: row.organizations!.id,
-            name: row.organizations!.name,
-            role: row.role,
-            logo_url: row.organizations!.logo_url,
-          }))
+  .filter((row) => row.organizations !== null)
+  .map((row) => ({
+    id: row.organizations!.id,
+    name: row.organizations!.name,
+    role: row.role,
+    siret: row.organizations!.siret,
+    siren: row.organizations!.siren,
+    vat_number: row.organizations!.vat_number,
+    address: row.organizations!.address,
+    postal_code: row.organizations!.postal_code,
+    city: row.organizations!.city,
+    country: row.organizations!.country,
+    logo_url: row.organizations!.logo_url,
+  }))
 
         if (!isMounted) return
 
@@ -643,7 +745,20 @@ const handleLogoUpload = async (
       isMounted = false
     }
   }, [authStatus, user?.id, organizationRefresh])
+  // Chargement des informations légales de l'entreprise sélectionnée
+  useEffect(() => {
+    const organization = organizations.find(
+      (org) => org.id === activeOrganizationId
+    )
 
+    setCompanySiret(organization?.siret ?? '')
+    setCompanySiren(organization?.siren ?? '')
+    setCompanyVatNumber(organization?.vat_number ?? '')
+    setCompanyAddress(organization?.address ?? '')
+    setCompanyPostalCode(organization?.postal_code ?? '')
+    setCompanyCity(organization?.city ?? '')
+    setCompanyCountry(organization?.country ?? 'France')
+  }, [organizations, activeOrganizationId])
   // Chargement des clients
   useEffect(() => {
     if (
@@ -2394,6 +2509,97 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
     </div>
 
     <div className="settings-card">
+      
+<h3>Informations légales de l'entreprise</h3>
+
+<div className="form-grid">
+  <div className="form-group">
+    <label htmlFor="company-siret">SIRET</label>
+    <input
+      id="company-siret"
+      value={companySiret}
+      onChange={(event) => setCompanySiret(event.target.value)}
+      placeholder="14 chiffres"
+    />
+  </div>
+
+  <div className="form-group">
+    <label htmlFor="company-siren">SIREN</label>
+    <input
+      id="company-siren"
+      value={companySiren}
+      onChange={(event) => setCompanySiren(event.target.value)}
+      placeholder="9 chiffres"
+    />
+  </div>
+
+  <div className="form-group">
+    <label htmlFor="company-vat">N° TVA intracommunautaire</label>
+    <input
+      id="company-vat"
+      value={companyVatNumber}
+      onChange={(event) => setCompanyVatNumber(event.target.value)}
+      placeholder="FR..."
+    />
+  </div>
+
+  <div className="form-group">
+    <label htmlFor="company-address">Adresse</label>
+    <input
+      id="company-address"
+      value={companyAddress}
+      onChange={(event) => setCompanyAddress(event.target.value)}
+      placeholder="Adresse de l'entreprise"
+    />
+  </div>
+
+  <div className="form-group">
+    <label htmlFor="company-postal-code">Code postal</label>
+    <input
+      id="company-postal-code"
+      value={companyPostalCode}
+      onChange={(event) => setCompanyPostalCode(event.target.value)}
+      placeholder="Code postal"
+    />
+  </div>
+
+  <div className="form-group">
+    <label htmlFor="company-city">Ville</label>
+    <input
+      id="company-city"
+      value={companyCity}
+      onChange={(event) => setCompanyCity(event.target.value)}
+      placeholder="Ville"
+    />
+  </div>
+
+  <div className="form-group">
+    <label htmlFor="company-country">Pays</label>
+    <input
+      id="company-country"
+      value={companyCountry}
+      onChange={(event) => setCompanyCountry(event.target.value)}
+      placeholder="France"
+    />
+  </div>
+</div>
+
+<button
+  type="button"
+  onClick={handleSaveCompanyInfo}
+  disabled={isSavingCompanyInfo}
+>
+  {isSavingCompanyInfo ? 'Enregistrement...' : 'Enregistrer les informations'}
+</button>
+
+{companyInfoError && (
+  <p className="error-message">{companyInfoError}</p>
+)}
+
+{companyInfoSuccess && (
+  <p className="success-message">{companyInfoSuccess}</p>
+)}
+
       <h3>Logo de l'entreprise</h3>
       <p className="muted-cell">
         Ce logo apparaîtra sur les PDF de tes factures.
