@@ -427,9 +427,7 @@ const handleLogoUpload = async (
   const organization = organizations.find(
     (org) => org.id === activeOrganizationId
   )
-const logoHtml = organization?.logo_url
-  ? `<img src="${escapeHtml(organization.logo_url)}" alt="Logo entreprise" class="company-logo">`
-  : ''
+
   if (!organization || !['owner', 'admin'].includes(organization.role)) {
     setLogoError("Tu n'as pas les droits nécessaires pour modifier ce logo.")
     event.target.value = ''
@@ -916,7 +914,9 @@ async function handleDownloadInvoice(invoice: Invoice) {
     const organization = organizations.find(
       (item) => item.id === activeOrganizationId,
     )
-
+const logoHtml = organization?.logo_url
+  ? `<img src="${escapeHtml(organization.logo_url)}" alt="Logo entreprise" class="company-logo">`
+  : ''
     const lines = (items ?? []).map((item) => `
       <tr>
         <td>${escapeHtml(item.description)}</td>
