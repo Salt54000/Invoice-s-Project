@@ -1798,9 +1798,11 @@ function removeQuoteLine(index: number) {
     createdQuoteId = quoteData.id
 
     const itemsToInsert = validLines.map((line) => {
-      const lineHT = line.quantity * line.unit_price
-      const lineTTC = lineHT * (1 + line.vat_rate / 100)
+const lineHT = Math.round((line.quantity * line.unit_price + Number.EPSILON) * 100) / 100
 
+const lineTVA = Math.round((lineHT * line.vat_rate / 100 + Number.EPSILON) * 100) / 100
+
+const lineTTC = Math.round((lineHT + lineTVA + Number.EPSILON) * 100) / 100
       return {
         quote_id: quoteData.id,
         description: line.description.trim(),
