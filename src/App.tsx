@@ -1252,6 +1252,102 @@ const logoHtml = organization?.logo_url
   }
 }
 
+async function handleDownloadFacturXXml(invoice: Invoice) {
+  if (!supabase) return
+
+  try {
+    const { data: items, error } = await supabase
+      .from('invoice_items')
+      .select('id, description, quantity, unit_price, vat_rate, total_ht, total_ttc')
+      .eq('invoice_id', invoice.id)
+
+    if (error) throw error
+
+    const client = clients.find(
+      (item) => item.id === invoice.client_id,
+    )
+
+    const organization = organizations.find(
+      (item) => item.id === invoice.organization_id,
+    )
+
+    if (!client || !organization) {
+      throw new Error('Informations du client ou de l’entreprise introuvables.')
+    }
+
+    if (!items || items.length === 0) {
+      throw new Error('La facture ne contient aucune ligne.')
+    }
+
+    const facturXData: FacturXInvoiceData = {
+      invoiceNumber: invoice.number,
+      issueDate: invoice.issueDate,
+      dueDate: invoice.dueDate || null,
+      currency: 'EUR',
+
+      seller: {
+        name: organization.name,
+        siret: organization.siret,
+        siren: organization.siren,
+        vatNumber: organization.vat_number,
+        address: organization.address,
+        postalCode: organization.postal_code,
+        city: organization.city,
+        country: organization.country,
+      },
+
+      buyer: {
+        name: client.name,
+        siret: client.siret,
+        siren: null,
+        vatNumber: client.vat_number,
+        address: client.address,
+        postalCode: client.postal_code,
+        city: client.city,
+        country: client.country,
+        email: client.email,
+      },
+
+      lines: items.map((item) => ({
+        id: item.id,
+        description: item.description,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unit_price),
+        vatRate: Number(item.vat_rate),
+        totalHT: Number(item.total_ht),
+        totalTTC: Number(item.total_ttc),
+      })),
+
+      subtotal: Number(invoice.subtotal),
+      taxTotal: Number(invoice.tax_total),
+      total: Number(invoice.amount),
+    }
+
+    const xml = generateFacturXXml(facturXData)
+
+    const blob = new Blob(
+      [xml],
+      { type: 'application/xml;charset=utf-8' },
+    )
+
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = `Factur-X-${invoice.number}.xml`
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    URL.revokeObjectURL(url)
+
+  } catch (error) {
+    console.error('Erreur de génération Factur-X :', error)
+    alert('Impossible de générer le fichier XML Factur-X.')
+  }
+}
+
 async function handleDownloadQuote(quote: Quote) {
   if (!supabase) return
 
@@ -2395,17 +2491,28 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
         {invoice.status}
       </span>
     </td>
-    <td>
-      <button
-        className="secondary-button"
-        type="button"
-        onClick={() => handleDownloadInvoice(invoice)}
-        title="Télécharger la facture en PDF"
-      >
-        <FileText size={15} /> PDF
-      </button>
-    </td>
-  </tr>
+   
+<td>
+  <button
+    className="secondary-button"
+    type="button"
+    onClick={() => handleDownloadInvoice(invoice)}
+    title="Télécharger la facture en PDF"
+  >
+    <FileText size={15} /> PDF
+  </button>
+
+  <button
+    className="secondary-button"
+    type="button"
+    onClick={() => handleDownloadFacturXXml(invoice)}
+    title="Télécharger le fichier XML Factur-X"
+  >
+    <FileText size={15} /> XML
+  </button>
+</td>
+</tr>
+
 ))}
                         
                         {filteredInvoices.length === 0 && (
