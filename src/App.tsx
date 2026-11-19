@@ -34,6 +34,21 @@ type Invoice = {
   dueDate: string
   amount: number
   status: InvoiceStatus
+  client_id: string
+  organization_id: string
+  subtotal: number
+  tax_total: number
+}
+
+type InvoiceItem = {
+  id: string
+  invoice_id: string
+  description: string
+  quantity: number
+  unit_price: number
+  vat_rate: number
+  total_ht: number
+  total_ttc: number
 }
 
 type InvoiceLine = {
@@ -828,7 +843,7 @@ async function handleSaveCompanyInfo() {
       try {
         const { data, error } = await supabase
           .from('invoices')
-          .select('id, invoice_number, status, issue_date, due_date, total, client_id')
+          .select('id, invoice_number, status, issue_date, due_date, total, client_id, subtotal, tax_total, organization_id')
           .eq('organization_id', activeOrganizationId)
           .order('created_at', { ascending: false })
 
@@ -881,6 +896,10 @@ async function handleSaveCompanyInfo() {
 
           return {
             id: row.id,
+            client_id: row.client_id,
+organization_id: row.organization_id,
+subtotal: Number(row.subtotal),
+tax_total: Number(row.tax_total),
             number: row.invoice_number,
             customer: linkedClient?.name ?? 'Client non renseigné',
             date: formatDate(row.issue_date),
@@ -1020,7 +1039,7 @@ async function handleDownloadInvoice(invoice: Invoice) {
   try {
     const { data: items, error } = await supabase
       .from('invoice_items')
-      .select('description, quantity, unit_price, vat_rate, total_ht, total_ttc')
+      .select('id, invoice_id, description, quantity, unit_price, vat_rate, total_ht, total_ttc')
       .eq('invoice_id', invoice.id)
 
     if (error) throw error
@@ -1226,7 +1245,7 @@ async function handleDownloadQuote(quote: Quote) {
   try {
     const { data: items, error } = await supabase
       .from('quote_items')
-      .select('description, quantity, unit_price, vat_rate, total_ht, total_ttc')
+      .select('id, invoice_id, description, quantity, unit_price, vat_rate, total_ht, total_ttc')
       .eq('quote_id', quote.id)
 
     if (error) throw error
