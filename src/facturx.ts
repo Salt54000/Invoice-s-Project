@@ -320,6 +320,13 @@ export function generateFacturXXml(
 
     <ram:ApplicableHeaderTradeSettlement>
       <ram:InvoiceCurrencyCode>${invoice.currency}</ram:InvoiceCurrencyCode>
+      ${invoice.dueDate ? `
+<ram:SpecifiedTradePaymentTerms>
+  <ram:DueDateDateTime>
+    <udt:DateTimeString format="102">${formatXmlDate(invoice.dueDate)}</udt:DateTimeString>
+  </ram:DueDateDateTime>
+</ram:SpecifiedTradePaymentTerms>
+` : ''}
       ${vatXml}
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         <ram:LineTotalAmount>${formatXmlAmount(invoice.subtotal)}</ram:LineTotalAmount>
