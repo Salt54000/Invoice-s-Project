@@ -159,6 +159,48 @@ function formatXmlDate(value: string): string {
   return value.replaceAll('-', '')
 }
 
+type VatBreakdown = {
+  rate: number
+  taxableAmount: number
+  taxAmount: number
+}
+
+function calculateVatBreakdown(
+  lines: FacturXLine[],
+): VatBreakdown[] {
+  const groups = new Map<number, VatBreakdown>()
+
+  for (const line of lines) {
+    const rate = line.vatRate
+
+    const existing = groups.get(rate) ?? {
+      rate,
+      taxableAmount: 0,
+      taxAmount: 0,
+    }
+
+    existing.taxableAmount += line.totalHT
+    existing.taxAmount += roundMoney(
+  line.totalHT * line.vatRate / 100,
+)
+
+    groups.set(rate, existing)
+  }
+
+  return Array.from(groups.values()).map((group) => ({
+    rate: group.rate,
+    taxableAmount: roundMoney(group.taxableAmount),
+    taxAmount: roundMoney(group.taxAmount),
+  }))
+}
+
+function getVatCategory(rate: number): string {
+  if (rate === 0) return 'Z'
+  if (rate > 0) return 'S'
+
+  throw new Error(`Taux de TVA invalide : ${rate}`)
+}
+
 export function generateFacturXXml(
   invoice: FacturXInvoiceData,
 ): string {
@@ -170,6 +212,18 @@ export function generateFacturXXml(
   if (errors.length > 0) {
     throw new Error(errors.join('\n'))
   }
+
+  const vatBreakdown = calculateVatBreakdown(invoice.lines)
+
+  const vatXml = vatBreakdown.map((vat) => `
+    <ram:ApplicableTradeTax>
+      <ram:CalculatedAmount>${formatXmlAmount(vat.taxAmount)}</ram:CalculatedAmount>
+      <ram:TypeCode>VAT</ram:TypeCode>
+      <ram:BasisAmount>${formatXmlAmount(vat.taxableAmount)}</ram:BasisAmount>
+      <ram:CategoryCode>${getVatCategory(vat.rate)}</ram:CategoryCode>
+      <ram:RateApplicablePercent>${formatXmlAmount(vat.rate)}</ram:RateApplicablePercent>
+    </ram:ApplicableTradeTax>
+  `).join('')
 
   const linesXml = invoice.lines.map((line, index) => `
     <ram:IncludedSupplyChainTradeLineItem>
@@ -190,7 +244,7 @@ export function generateFacturXXml(
       <ram:SpecifiedLineTradeSettlement>
         <ram:ApplicableTradeTax>
           <ram:TypeCode>VAT</ram:TypeCode>
-          <ram:CategoryCode>${line.vatRate === 0 ? 'Z' : 'S'}</ram:CategoryCode>
+          <ram:CategoryCode>${getVatCategory(line.vatRate)}</ram:CategoryCode>
           <ram:RateApplicablePercent>${formatXmlAmount(line.vatRate)}</ram:RateApplicablePercent>
         </ram:ApplicableTradeTax>
         <ram:SpecifiedTradeSettlementLineMonetarySummation>
@@ -223,12 +277,42 @@ export function generateFacturXXml(
   <rsm:SupplyChainTradeTransaction>
     ${linesXml}
     <ram:ApplicableHeaderTradeAgreement>
-      <ram:SellerTradeParty>
-        <ram:Name>${escapeXml(invoice.seller.name)}</ram:Name>
-      </ram:SellerTradeParty>
+     <ram:SellerTradeParty>
+  <ram:Name>${escapeXml(invoice.seller.name)}</ram:Name>
+  ${invoice.seller.address ? `
+<ram:PostalTradeAddress>
+  <ram:LineOne>${escapeXml(invoice.seller.address)}</ram:LineOne>
+  <ram:PostcodeCode>${escapeXml(invoice.seller.postalCode ?? '')}</ram:PostcodeCode>
+  <ram:CityName>${escapeXml(invoice.seller.city ?? '')}</ram:CityName>
+  <ram:CountryID>${escapeXml(invoice.seller.country ?? 'FR')}</ram:CountryID>
+</ram:PostalTradeAddress>` : ''}
+  ${invoice.seller.siret ? `
+  <ram:SpecifiedLegalOrganization>
+    <ram:ID schemeID="0002">${escapeXml(invoice.seller.siret)}</ram:ID>
+  </ram:SpecifiedLegalOrganization>` : ''}
+  ${invoice.seller.vatNumber ? `
+  <ram:SpecifiedTaxRegistration>
+    <ram:ID schemeID="VA">${escapeXml(invoice.seller.vatNumber)}</ram:ID>
+  </ram:SpecifiedTaxRegistration>` : ''}
+</ram:SellerTradeParty>
       <ram:BuyerTradeParty>
-        <ram:Name>${escapeXml(invoice.buyer.name)}</ram:Name>
-      </ram:BuyerTradeParty>
+  <ram:Name>${escapeXml(invoice.buyer.name)}</ram:Name>
+  ${invoice.buyer.address ? `
+<ram:PostalTradeAddress>
+  <ram:LineOne>${escapeXml(invoice.buyer.address)}</ram:LineOne>
+  <ram:PostcodeCode>${escapeXml(invoice.buyer.postalCode ?? '')}</ram:PostcodeCode>
+  <ram:CityName>${escapeXml(invoice.buyer.city ?? '')}</ram:CityName>
+  <ram:CountryID>${escapeXml(invoice.buyer.country ?? 'FR')}</ram:CountryID>
+</ram:PostalTradeAddress>` : ''}
+  ${invoice.buyer.siret ? `
+  <ram:SpecifiedLegalOrganization>
+    <ram:ID schemeID="0002">${escapeXml(invoice.buyer.siret)}</ram:ID>
+  </ram:SpecifiedLegalOrganization>` : ''}
+  ${invoice.buyer.vatNumber ? `
+  <ram:SpecifiedTaxRegistration>
+    <ram:ID schemeID="VA">${escapeXml(invoice.buyer.vatNumber)}</ram:ID>
+  </ram:SpecifiedTaxRegistration>` : ''}
+</ram:BuyerTradeParty>
     </ram:ApplicableHeaderTradeAgreement>
 
     <ram:ApplicableHeaderTradeDelivery>
@@ -243,6 +327,7 @@ export function generateFacturXXml(
 
     <ram:ApplicableHeaderTradeSettlement>
       <ram:InvoiceCurrencyCode>${invoice.currency}</ram:InvoiceCurrencyCode>
+      ${vatXml}
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         <ram:LineTotalAmount>${formatXmlAmount(invoice.subtotal)}</ram:LineTotalAmount>
         <ram:TaxBasisTotalAmount>${formatXmlAmount(invoice.subtotal)}</ram:TaxBasisTotalAmount>
