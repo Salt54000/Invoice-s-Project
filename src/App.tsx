@@ -22,6 +22,10 @@ import {
   Wallet,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
+import {
+  generateFacturXXml,
+  type FacturXInvoiceData,
+} from './facturx'
 
 type InvoiceStatus = 'Payée' | 'En attente' | 'En retard' | 'Brouillon'
 
