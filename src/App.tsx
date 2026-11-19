@@ -1068,21 +1068,28 @@ const logoHtml = organization?.logo_url
       </tr>
     `).join('')
 
-    const subtotal = (items ?? []).reduce(
-      (sum, item) => sum + Number(item.total_ht),
-      0,
-    )
+    const subtotal = Math.round(
+  ((items ?? []).reduce(
+    (sum, item) => sum + Number(item.total_ht),
+    0,
+  ) + Number.EPSILON) * 100,
+) / 100
 
     const taxTotal = (items ?? []).reduce(
-      (sum, item) =>
-        sum + Number(item.total_ht) * Number(item.vat_rate) / 100,
-      0,
-    )
+  (sum, item) =>
+    sum +
+    Math.round(
+      (Number(item.total_ht) * Number(item.vat_rate) / 100 + Number.EPSILON) * 100,
+    ) / 100,
+  0,
+)
 
-    const total = (items ?? []).reduce(
-      (sum, item) => sum + Number(item.total_ttc),
-      0,
-    )
+    const total = Math.round(
+  ((items ?? []).reduce(
+    (sum, item) => sum + Number(item.total_ttc),
+    0,
+  ) + Number.EPSILON) * 100,
+) / 100
 
     printWindow.document.open()
     printWindow.document.write(`
@@ -1617,18 +1624,34 @@ function removeQuoteLine(index: number) {
       const dueDate = addDaysToDate(issueDate, paymentTermDays)
       const invoiceNumber = `FAC-${new Date().getFullYear()}-${Date.now()}`
 
-      const calculatedSubtotal = validLines.reduce(
-        (sum, line) => sum + line.quantity * line.unit_price,
-        0,
-      )
+      const calculatedSubtotal = Math.round(
+  (validLines.reduce(
+    (sum, line) =>
+      sum + Math.round(
+        (line.quantity * line.unit_price + Number.EPSILON) * 100,
+      ) / 100,
+    0,
+  ) + Number.EPSILON) * 100,
+) / 100
 
-      const calculatedTax = validLines.reduce(
-        (sum, line) =>
-          sum + line.quantity * line.unit_price * (line.vat_rate / 100),
-        0,
-      )
+const calculatedTax = Math.round(
+  (validLines.reduce(
+    (sum, line) => {
+      const lineHT = Math.round(
+        (line.quantity * line.unit_price + Number.EPSILON) * 100,
+      ) / 100
 
-      const calculatedTotal = calculatedSubtotal + calculatedTax
+      return sum + Math.round(
+        (lineHT * line.vat_rate / 100 + Number.EPSILON) * 100,
+      ) / 100
+    },
+    0,
+  ) + Number.EPSILON) * 100,
+) / 100
+
+const calculatedTotal = Math.round(
+  (calculatedSubtotal + calculatedTax + Number.EPSILON) * 100,
+) / 100
 
       const { data: invoiceData, error: invoiceInsertError } = await supabase
         .from('invoices')
