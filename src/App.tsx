@@ -522,7 +522,7 @@ const handleLogoUpload = async (
       .from('organizations')
       .update({ logo_url: publicUrl })
       .eq('id', activeOrganizationId)
-
+      
     if (updateError) throw updateError
 
     setOrganizations((current) =>
@@ -564,7 +564,7 @@ async function handleSaveCompanyInfo() {
   setIsSavingCompanyInfo(true)
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('organizations')
       .update({
         siret: companySiret.trim() || null,
@@ -576,8 +576,15 @@ async function handleSaveCompanyInfo() {
         country: companyCountry.trim() || null,
       })
       .eq('id', activeOrganizationId)
+      .select('id, address, postal_code, city, country')
+.maybeSingle()
 
     if (error) throw error
+    if (!data) {
+  throw new Error('Aucune entreprise modifiée. Vérifiez les autorisations RLS.')
+}
+
+console.log('Données renvoyées par Supabase :', data)
 
     setOrganizations((current) =>
       current.map((org) =>
@@ -2040,7 +2047,7 @@ async function handleUpdateQuoteStatus(
 
   setQuoteError(null)
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('quotes')
     .update({ status: newStatus })
     .eq('id', quoteId)
