@@ -1663,15 +1663,19 @@ function removeQuoteLine(index: number) {
 
       setInvoices((current) => [
         {
-          id: invoiceData.id,
-          number: invoiceNumber,
-          customer: client?.name ?? 'Client',
-          date: formatDate(issueDate),
-          issueDate,
-          dueDate,
-          amount: calculatedTotal,
-          status: 'Brouillon',
-        },
+  id: invoiceData.id,
+  number: invoiceNumber,
+  customer: client?.name ?? 'Client',
+  date: formatDate(issueDate),
+  issueDate,
+  dueDate,
+  amount: calculatedTotal,
+  status: 'Brouillon',
+  client_id: selectedClientId,
+  organization_id: activeOrganizationId,
+  subtotal: calculatedSubtotal,
+  tax_total: calculatedTax,
+},
         ...current,
       ])
 
