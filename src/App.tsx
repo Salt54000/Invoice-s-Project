@@ -427,7 +427,9 @@ const handleLogoUpload = async (
   const organization = organizations.find(
     (org) => org.id === activeOrganizationId
   )
-
+const logoHtml = organization?.logo_url
+  ? `<img src="${escapeHtml(organization.logo_url)}" alt="Logo entreprise" class="company-logo">`
+  : ''
   if (!organization || !['owner', 'admin'].includes(organization.role)) {
     setLogoError("Tu n'as pas les droits nécessaires pour modifier ce logo.")
     event.target.value = ''
@@ -1014,6 +1016,7 @@ async function handleDownloadInvoice(invoice: Invoice) {
       </head>
       <body>
         <div class="header">
+        ${logoHtml}
           <div>
             <h1>${escapeHtml(organization?.name ?? 'Mon entreprise')}</h1>
             <p>Document établi avec FacturPro</p>
@@ -1157,6 +1160,12 @@ async function handleDownloadQuote(quote: Quote) {
         <meta charset="UTF-8">
         <title>Devis ${escapeHtml(quote.quote_number)}</title>
         <style>
+        .company-logo {
+  max-width: 150px;
+  max-height: 80px;
+  object-fit: contain;
+  margin-bottom: 15px;
+}
           body {
             font-family: Arial, sans-serif;
             color: #1f2937;
