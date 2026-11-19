@@ -1044,7 +1044,9 @@ async function handleDownloadInvoice(invoice: Invoice) {
 
     if (error) throw error
 
-    const client = clients.find((item) => item.name === invoice.customer)
+    const client = clients.find(
+  (item) => item.id === invoice.client_id,
+)
     const organization = organizations.find(
       (item) => item.id === activeOrganizationId,
     )
@@ -1152,8 +1154,13 @@ const logoHtml = organization?.logo_url
         <div class="header">
         ${logoHtml}
           <div>
-            <h1>${escapeHtml(organization?.name ?? 'Mon entreprise')}</h1>
-            <p>Document établi avec FacturPro</p>
+           <h1>${escapeHtml(organization?.name ?? 'Mon entreprise')}</h1>
+<p>${escapeHtml(organization?.address ?? '')}</p>
+<p>${escapeHtml([organization?.postal_code, organization?.city].filter(Boolean).join(' '))}</p>
+<p>${escapeHtml(organization?.country ?? '')}</p>
+<p>${escapeHtml(organization?.siret ? `SIRET : ${organization.siret}` : '')}</p>
+<p>${escapeHtml(organization?.siren ? `SIREN : ${organization.siren}` : '')}</p>
+<p>${escapeHtml(organization?.vat_number ? `TVA intracommunautaire : ${organization.vat_number}` : '')}</p>
           </div>
           <div>
             <h2>FACTURE</h2>
@@ -1170,10 +1177,11 @@ const logoHtml = organization?.logo_url
             <p>${escapeHtml(client?.name ?? invoice.customer)}</p>
             <p>${escapeHtml(client?.address)}</p>
             <p>${escapeHtml([client?.postal_code, client?.city].filter(Boolean).join(' '))}</p>
-            <p>${escapeHtml(client?.country)}</p>
-            <p>${escapeHtml(client?.email)}</p>
-            <p>${escapeHtml(client?.siret ? `SIRET : ${client.siret}` : '')}</p>
-            <p>${escapeHtml(client?.vat_number ? `TVA : ${client.vat_number}` : '')}</p>
+            <p>${escapeHtml(client?.country ?? '')}</p>
+<p>${escapeHtml(client?.email ?? '')}</p>
+<p>${escapeHtml(client?.phone ?? '')}</p>
+<p>${escapeHtml(client?.siret ? `SIRET : ${client.siret}` : '')}</p>
+<p>${escapeHtml(client?.vat_number ? `TVA intracommunautaire : ${client.vat_number}` : '')}</p>
           </div>
           <div class="box">
             <strong>INFORMATIONS</strong>
