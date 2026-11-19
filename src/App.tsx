@@ -605,9 +605,14 @@ console.log('Données renvoyées par Supabase :', data)
 
     setCompanyInfoSuccess('Informations de l’entreprise enregistrées avec succès.')
   } catch (error) {
-    console.error("Erreur lors de l'enregistrement des informations :", error)
-    setCompanyInfoError("Impossible d'enregistrer les informations de l'entreprise.")
-  } finally {
+  console.error("Erreur lors de l'enregistrement des informations :", error)
+
+  setCompanyInfoError(
+    error instanceof Error
+      ? error.message
+      : JSON.stringify(error)
+  )
+} finally {
     setIsSavingCompanyInfo(false)
   }
 }
