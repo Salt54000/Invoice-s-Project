@@ -150,14 +150,18 @@ export function validateFacturXTotals(
 )
 
   const calculatedTotal = roundMoney(
-    invoice.lines.reduce((sum, line) => sum + line.totalTTC, 0),
-  )
-
+  invoice.lines.reduce(
+    (sum, line) => sum + roundMoney(
+      line.totalHT + roundMoney(line.totalHT * line.vatRate / 100),
+    ),
+    0,
+  ),
+)
   if (roundMoney(invoice.subtotal) !== calculatedSubtotal) {
     errors.push('Le total HT ne correspond pas aux lignes.')
   }
 
-  if (Math.abs(roundMoney(invoice.taxTotal) - calculatedTax) > 0.02) {
+  if (roundMoney(invoice.taxTotal) !== calculatedTax) {
     errors.push('Le montant de TVA ne correspond pas aux lignes.')
   }
 
