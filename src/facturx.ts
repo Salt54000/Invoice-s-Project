@@ -316,14 +316,7 @@ export function generateFacturXXml(
     </ram:ApplicableHeaderTradeAgreement>
 
     <ram:ApplicableHeaderTradeDelivery>
-      ${invoice.dueDate ? `
-      <ram:ActualDeliverySupplyChainEvent>
-        <ram:OccurrenceDateTime>
-          <udt:DateTimeString format="102">${formatXmlDate(invoice.dueDate)}</udt:DateTimeString>
-        </ram:OccurrenceDateTime>
-      </ram:ActualDeliverySupplyChainEvent>
-      ` : ''}
-    </ram:ApplicableHeaderTradeDelivery>
+</ram:ApplicableHeaderTradeDelivery>
 
     <ram:ApplicableHeaderTradeSettlement>
       <ram:InvoiceCurrencyCode>${invoice.currency}</ram:InvoiceCurrencyCode>
