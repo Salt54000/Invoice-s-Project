@@ -314,6 +314,7 @@ const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
   const [organizations, setOrganizations] = useState<Organization[]>([])
+  const activeOrganizationRole = organizations.find((org) => org.id === activeOrganizationId)?.role
   const [companySiret, setCompanySiret] = useState('')
 const [companySiren, setCompanySiren] = useState('')
 const [companyVatNumber, setCompanyVatNumber] = useState('')
@@ -3788,7 +3789,7 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
                 <button className="secondary-button" onClick={() => setIsCreateOpen(false)} type="button" disabled={isCreatingInvoice}>
                   Annuler
                 </button>
-                <button className="primary-button" type="submit" disabled={isCreatingInvoice || !selectedClientId || invoiceTotal <= 0}>
+                <button className="primary-button" type="submit" disabled={activeOrganizationRole === 'accountant' || isCreatingInvoice || !selectedClientId || invoiceTotal <= 0}>
                   <Plus size={17} /> {isCreatingInvoice ? 'Enregistrement…' : 'Enregistrer la facture'}
                 </button>
               </div>
