@@ -2912,6 +2912,7 @@ async function handleSignUp() {
     <input
       id="company-siret"
       value={companySiret}
+      readOnly={activeOrganizationRole === 'accountant'}
       onChange={(event) => setCompanySiret(event.target.value)}
       placeholder="14 chiffres"
     />
@@ -2922,6 +2923,7 @@ async function handleSignUp() {
     <input
       id="company-siren"
       value={companySiren}
+      readOnly={activeOrganizationRole === 'accountant'}
       onChange={(event) => setCompanySiren(event.target.value)}
       placeholder="9 chiffres"
     />
@@ -2932,6 +2934,7 @@ async function handleSignUp() {
     <input
       id="company-vat"
       value={companyVatNumber}
+      readOnly={activeOrganizationRole === 'accountant'}
       onChange={(event) => setCompanyVatNumber(event.target.value)}
       placeholder="FR..."
     />
@@ -2942,6 +2945,7 @@ async function handleSignUp() {
     <input
       id="company-address"
       value={companyAddress}
+      readOnly={activeOrganizationRole === 'accountant'}
       onChange={(event) => setCompanyAddress(event.target.value)}
       placeholder="Adresse de l'entreprise"
     />
@@ -2952,6 +2956,7 @@ async function handleSignUp() {
     <input
       id="company-postal-code"
       value={companyPostalCode}
+      readOnly={activeOrganizationRole === 'accountant'}
       onChange={(event) => setCompanyPostalCode(event.target.value)}
       placeholder="Code postal"
     />
@@ -2962,6 +2967,7 @@ async function handleSignUp() {
     <input
       id="company-city"
       value={companyCity}
+      readOnly={activeOrganizationRole === 'accountant'}
       onChange={(event) => setCompanyCity(event.target.value)}
       placeholder="Ville"
     />
@@ -2972,19 +2978,23 @@ async function handleSignUp() {
     <input
       id="company-country"
       value={companyCountry}
+      readOnly={activeOrganizationRole === 'accountant'}
       onChange={(event) => setCompanyCountry(event.target.value)}
       placeholder="France"
     />
   </div>
 </div>
-
-<button
-  type="button"
-  onClick={handleSaveCompanyInfo}
-  disabled={isSavingCompanyInfo}
->
-  {isSavingCompanyInfo ? 'Enregistrement...' : 'Enregistrer les informations'}
-</button>
+{activeOrganizationRole !== 'accountant' && (
+  <button
+    type="button"
+    onClick={handleSaveCompanyInfo}
+    disabled={isSavingCompanyInfo}
+  >
+    {isSavingCompanyInfo
+      ? 'Enregistrement...'
+      : 'Enregistrer les informations'}
+  </button>
+)}
 
 {companyInfoError && (
   <p className="error-message">{companyInfoError}</p>
@@ -3020,7 +3030,10 @@ async function handleSignUp() {
         type="file"
         accept="image/png,image/jpeg,image/webp"
         onChange={handleLogoUpload}
-        disabled={isUploadingLogo}
+        disabled={
+  isUploadingLogo ||
+  activeOrganizationRole === 'accountant'
+}
       />
 
       <p className="muted-cell">
