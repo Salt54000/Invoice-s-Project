@@ -311,6 +311,7 @@ const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSigningIn, setIsSigningIn] = useState(false)
+  const [isSigningUp, setIsSigningUp] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
   const [organizations, setOrganizations] = useState<Organization[]>([])
@@ -2193,7 +2194,30 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
 
   setActivePage('Factures')
 }
+async function handleSignUp() {
+  if (!supabase) return
 
+  setIsSigningUp(true)
+  setAuthMessage(null)
+
+  try {
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+    })
+
+    if (error) throw error
+
+    setAuthMessage(
+      "Inscription réussie. Vérifie ta boîte e-mail pour confirmer ton compte."
+    )
+  } catch (error) {
+    console.error(error)
+    setAuthMessage("Impossible de créer le compte. Vérifie les informations saisies.")
+  } finally {
+    setIsSigningUp(false)
+  }
+}
 
   async function handleSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -2353,6 +2377,14 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
             <button className="primary-button" disabled={!supabase || isSigningIn} type="submit">
               {isSigningIn ? 'Connexion…' : 'Se connecter'}
             </button>
+            <button
+  className="secondary-button"
+  type="button"
+  disabled={!supabase || isSigningUp || isSigningIn}
+  onClick={handleSignUp}
+>
+  {isSigningUp ? 'Création du compte…' : 'Créer un compte'}
+</button>
           </form>
         </section>
       </main>
