@@ -314,7 +314,7 @@ const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
   const [organizations, setOrganizations] = useState<Organization[]>([])
-  const activeOrganizationRole = organizations.find((org) => org.id === activeOrganizationId)?.role
+  
   const [companySiret, setCompanySiret] = useState('')
 const [companySiren, setCompanySiren] = useState('')
 const [companyVatNumber, setCompanyVatNumber] = useState('')
@@ -327,6 +327,7 @@ const [companyInfoError, setCompanyInfoError] = useState('')
 const [companyInfoSuccess, setCompanyInfoSuccess] = useState('')
 const [isSavingCompanyInfo, setIsSavingCompanyInfo] = useState(false)
   const [activeOrganizationId, setActiveOrganizationId] = useState('')
+  const activeOrganizationRole = organizations.find((org) => org.id === activeOrganizationId)?.role
   const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
   const [organizationError, setOrganizationError] = useState<string | null>(null)
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false)
