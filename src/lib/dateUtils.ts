@@ -17,3 +17,9 @@ export function addDaysToDate(date: string, days: number) {
 
   return `${year}-${month}-${day}`
 }
+export const formatDate = (date: string) =>
+  new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${date}T12:00:00`))

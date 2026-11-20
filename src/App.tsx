@@ -1,6 +1,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import type { FormEvent } from "react";
+import type { InvoiceStatus, Invoice, Client } from './types'
+import { useInvoices } from './hooks/useInvoices'
 import type { User } from '@supabase/supabase-js'
 import {
   ArrowDownRight,
@@ -23,29 +25,13 @@ import {
   Wallet,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
-import { getTodayDate, addDaysToDate } from './lib/dateUtils'
+import { getTodayDate, addDaysToDate, formatDate } from './lib/dateUtils'
 import { isNetworkError, isMissingAuthSession } from './lib/errorUtils'
 import {
   generateFacturXXml,
   type FacturXInvoiceData,
 } from './facturx'
 
-type InvoiceStatus = 'Payée' | 'En attente' | 'En retard' | 'Brouillon'
-
-type Invoice = {
-  id: string
-  number: string
-  customer: string
-  date: string
-  issueDate: string
-  dueDate: string
-  amount: number
-  status: InvoiceStatus
-  client_id: string
-  organization_id: string
-  subtotal: number
-  tax_total: number
-}
 
 type InvoiceItem = {
   id: string
@@ -110,21 +96,6 @@ type Organization = {
   logo_url: string | null
 }
 
-type Client = {
-  id: string
-  organization_id: string
-  name: string
-  email: string | null
-  phone: string | null
-  siret: string | null
-  vat_number: string | null
-  address: string | null
-  postal_code: string | null
-  city: string | null
-  country: string
-  created_at: string
-}
-
 type AuthStatus =
   | 'checking'
   | 'authenticated'
@@ -144,14 +115,6 @@ const formatCurrency = (amount: number) =>
     style: 'currency',
     currency: 'EUR',
   }).format(amount)
-
-const formatDate = (date: string) =>
-  new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(`${date}T12:00:00`))
-
 
 function App() {
   const [activePage, setActivePage] = useState('Vue d’ensemble')
@@ -207,11 +170,6 @@ try {
     setInvitationToken(token)
   }
 }, [])
-
- const [invoices, setInvoices] = useState<Invoice[]>([])
-const [isLoadingInvoices, setIsLoadingInvoices] = useState(false)
-const [invoiceError, setInvoiceError] = useState<string | null>(null)
-
 const [quotes, setQuotes] = useState<Quote[]>([])
 const [isLoadingQuotes, setIsLoadingQuotes] = useState(false)
 const [quoteError, setQuoteError] = useState<string | null>(null)
@@ -307,6 +265,18 @@ const [logoSuccess, setLogoSuccess] = useState<string | null>(null)
   const [clients, setClients] = useState<Client[]>([])
   const [isLoadingClients, setIsLoadingClients] = useState(false)
   const [clientError, setClientError] = useState<string | null>(null)
+  const {
+  invoices,
+  setInvoices,
+  isLoadingInvoices,
+  invoiceError,
+  setInvoiceError,
+} = useInvoices({
+  isAuthenticated: authStatus === 'authenticated',
+  userId: user?.id,
+  activeOrganizationId,
+  clients,
+})
   const [isCreateClientOpen, setIsCreateClientOpen] = useState(false)
   const [newClientName, setNewClientName] = useState('')
   const [newClientEmail, setNewClientEmail] = useState('')
@@ -894,115 +864,7 @@ console.log('Données renvoyées par Supabase :', data)
   }, [authStatus, user?.id, activeOrganizationId])
 
   // Chargement des factures depuis Supabase
-  useEffect(() => {
-    if (
-      !supabase ||
-      authStatus !== 'authenticated' ||
-      !user ||
-      !activeOrganizationId
-    ) {
-      setInvoices([])
-      setIsLoadingInvoices(false)
-      return
-    }
-
-    let isMounted = true
-
-    async function loadInvoices() {
-      if (!supabase) return
-
-      setIsLoadingInvoices(true)
-      setInvoiceError(null)
-
-      try {
-        const { data, error } = await supabase
-          .from('invoices')
-          .select('id, invoice_number, status, issue_date, due_date, total, client_id, subtotal, tax_total, organization_id')
-          .eq('organization_id', activeOrganizationId)
-          .order('created_at', { ascending: false })
-
-        if (error) throw error
-
-        const today = getTodayDate()
-
-        const overdueIds = (data ?? [])
-          .filter(
-            (row) =>
-              row.status === 'pending' &&
-              row.due_date &&
-              row.due_date < today,
-          )
-          .map((row) => row.id)
-
-        // Mise à jour du statut dans Supabase pour les factures échues
-        if (overdueIds.length > 0) {
-          const { error: overdueError } = await supabase
-            .from('invoices')
-            .update({ status: 'overdue' })
-            .in('id', overdueIds)
-            .eq('organization_id', activeOrganizationId)
-            .eq('status', 'pending')
-
-          if (overdueError) {
-            console.error(
-              'Impossible de mettre à jour les factures en retard :',
-              overdueError,
-            )
-          }
-        }
-
-        const loadedInvoices: Invoice[] = (data ?? []).map((row) => {
-          const linkedClient = clients.find(
-            (client) => client.id === row.client_id,
-          )
-
-          const statusMap: Record<string, InvoiceStatus> = {
-            paid: 'Payée',
-            pending: 'En attente',
-            overdue: 'En retard',
-            draft: 'Brouillon',
-          }
-
-          const isOverdue =
-            row.status === 'pending' &&
-            row.due_date &&
-            row.due_date < today
-
-          return {
-            id: row.id,
-            client_id: row.client_id,
-organization_id: row.organization_id,
-subtotal: Number(row.subtotal),
-tax_total: Number(row.tax_total),
-            number: row.invoice_number,
-            customer: linkedClient?.name ?? 'Client non renseigné',
-            date: formatDate(row.issue_date),
-            issueDate: row.issue_date,
-            dueDate: row.due_date ?? '',
-            amount: Number(row.total),
-            status: isOverdue
-              ? 'En retard'
-              : statusMap[row.status] ?? 'Brouillon',
-          }
-        })
-
-        if (isMounted) setInvoices(loadedInvoices)
-      } catch (error) {
-        console.error('Erreur de chargement des factures :', error)
-        if (isMounted) {
-          setInvoiceError('Impossible de charger les factures. Réessayez.')
-        }
-      } finally {
-        if (isMounted) setIsLoadingInvoices(false)
-      }
-    }
-
-    void loadInvoices()
-
-    return () => {
-      isMounted = false
-    }
-  }, [authStatus, user?.id, activeOrganizationId, clients])
+  
 
   // Chargement des devis depuis Supabase
   useEffect(() => {
