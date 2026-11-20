@@ -3056,6 +3056,8 @@ async function handleSignUp() {
     </div>
 
     <div className="settings-card">
+      {activeOrganizationRole !== 'accountant' && (
+         <>
       <h3>Inviter un comptable</h3>
       <p className="muted-cell">
         Tu pourras inviter ton cabinet comptable à consulter les documents de ton entreprise.
@@ -3080,6 +3082,8 @@ async function handleSignUp() {
 </button>
 {invitationMessage && (
   <p className="muted-cell">{invitationMessage}</p>
+)}
+  </>
 )}
     </div>
   </section>
