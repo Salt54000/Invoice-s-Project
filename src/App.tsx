@@ -847,6 +847,7 @@ console.log('Données renvoyées par Supabase :', data)
         if (!isMounted) return
 
         setOrganizations(loadedOrganizations)
+        
         setActiveOrganizationId((current) =>
           loadedOrganizations.some((org) => org.id === current)
             ? current
