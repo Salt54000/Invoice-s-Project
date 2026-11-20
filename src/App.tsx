@@ -23,6 +23,8 @@ import {
   Wallet,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
+import { getTodayDate, addDaysToDate } from './lib/dateUtils'
+import { isNetworkError, isMissingAuthSession } from './lib/errorUtils'
 import {
   generateFacturXXml,
   type FacturXInvoiceData,
@@ -150,44 +152,6 @@ const formatDate = (date: string) =>
     year: 'numeric',
   }).format(new Date(`${date}T12:00:00`))
 
-function getTodayDate() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
-function addDaysToDate(date: string, days: number) {
-  const result = new Date(`${date}T12:00:00`)
-  result.setDate(result.getDate() + days)
-
-  const year = result.getFullYear()
-  const month = String(result.getMonth() + 1).padStart(2, '0')
-  const day = String(result.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
-function isNetworkError(error: unknown): boolean {
-  const message =
-    error instanceof Error
-      ? `${error.name} ${error.message}`.toLowerCase()
-      : String(error).toLowerCase()
-
-  return /failed to fetch|network|fetch failed|load failed|timeout|connection/.test(message)
-}
-
-function isMissingAuthSession(error: {
-  name?: string
-  code?: string
-}): boolean {
-  return (
-    error.name === 'AuthSessionMissingError' ||
-    error.code === 'session_not_found'
-  )
-}
 
 function App() {
   const [activePage, setActivePage] = useState('Vue d’ensemble')
