@@ -2756,6 +2756,8 @@ async function handleSignUp() {
     <p>Les devis enregistrés pour cette entreprise.</p>
   </div>
 
+  
+{activeOrganizationRole !== 'accountant' && (
   <button
     type="button"
     className="primary-button"
@@ -2767,6 +2769,8 @@ async function handleSignUp() {
     <Plus size={18} />
     Nouveau devis
   </button>
+)}
+
 </div>
 
 
@@ -2818,6 +2822,10 @@ async function handleSignUp() {
 
 <td>
   <select
+  disabled={
+    activeOrganizationRole === 'accountant' ||
+    quote.status === 'Converti en facture'
+  }
     value={quote.status}
     onChange={(event) =>
       handleUpdateQuoteStatus(
@@ -2825,7 +2833,7 @@ async function handleSignUp() {
         event.target.value as QuoteStatus,
       )
     }
-    disabled={quote.status === 'Converti en facture'}
+    
     aria-label={`Statut du devis ${quote.quote_number}`}
   >
     <option value="Brouillon">Brouillon</option>
@@ -2837,7 +2845,7 @@ async function handleSignUp() {
 </td>
 
 <td>
-  {quote.status === 'Accepté' && (
+  {activeOrganizationRole !== 'accountant' && quote.status === 'Accepté' && (
     <button
       className="primary-button"
       type="button"
