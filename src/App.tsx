@@ -192,6 +192,15 @@ function isMissingAuthSession(error: {
 function App() {
   const [activePage, setActivePage] = useState('Vue d’ensemble')
   const [search, setSearch] = useState('')
+  const [invitationToken, setInvitationToken] = useState<string | null>(null)
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search)
+  const token = params.get('accept-accounting-invitation')
+
+  if (token) {
+    setInvitationToken(token)
+  }
+}, [])
 
  const [invoices, setInvoices] = useState<Invoice[]>([])
 const [isLoadingInvoices, setIsLoadingInvoices] = useState(false)
@@ -223,6 +232,39 @@ const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking')
   const [authMessage, setAuthMessage] = useState<string | null>(null)
+  useEffect(() => {
+  if (!user || !invitationToken) return
+
+  const acceptInvitation = async () => {
+        if (!supabase) {
+      setAuthMessage("Connexion à Supabase indisponible.")
+      return
+    }
+    const { data, error } = await supabase.functions.invoke(
+      'accept-accounting-invitation',
+      {
+        body: { token: invitationToken },
+      }
+    )
+
+    if (error) {
+      setAuthMessage("Impossible de traiter l'invitation.")
+      return
+    }
+
+    if (data?.message) {
+      setAuthMessage(data.message)
+      setInvitationToken(null)
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (data?.error) {
+      setAuthMessage(data.error)
+      setInvitationToken(null)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }
+
+  void acceptInvitation()
+}, [user, invitationToken])
   const [authCheckAttempt, setAuthCheckAttempt] = useState(0)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
