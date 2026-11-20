@@ -2591,18 +2591,28 @@ async function handleSignUp() {
                 <p className="empty-row">Aucun client enregistré pour cette entreprise.</p>
               ) : (
                 <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr><th>NOM</th><th>EMAIL</th><th>TÉLÉPHONE</th><th>VILLE</th><th>ACTION</th></tr>
-                    </thead>
-                    <tbody>
-                      {clients.map((client) => (
-                       <tr key={client.id}>
-  <td>{client.name}</td>
-  <td>{client.email ?? '—'}</td>
-  <td>{client.phone ?? '—'}</td>
-  <td>{client.city ?? '—'}</td>
-  <td>
+        
+<table>
+  <thead>
+    <tr>
+      <th>NOM</th>
+      <th>EMAIL</th>
+      <th>TÉLÉPHONE</th>
+      <th>VILLE</th>
+      <th>ACTION</th>
+    </tr>
+  </thead>
+  <tbody>
+    {clients.map((client) => (
+      <tr key={client.id}>
+        <td>{client.name}</td>
+        <td>{client.email ?? '—'}</td>
+        <td>{client.phone ?? '—'}</td>
+        <td>{client.city ?? '—'}</td>
+        
+
+<td>
+  {activeOrganizationRole !== 'accountant' && (
     <button
       className="secondary-button"
       type="button"
@@ -2620,11 +2630,15 @@ async function handleSignUp() {
     >
       Modifier
     </button>
-  </td>
-</tr>
-                      ))}
-                    </tbody>
-                  </table>
+  )}
+</td>
+
+
+      </tr>
+    ))}
+  </tbody>
+</table>
+
                 </div>
               )}
             </section>
@@ -2696,6 +2710,7 @@ async function handleSignUp() {
     </td>
    
 <td>
+  
   <button
     className="secondary-button"
     type="button"
