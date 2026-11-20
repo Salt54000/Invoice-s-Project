@@ -192,6 +192,48 @@ function isMissingAuthSession(error: {
 function App() {
   const [activePage, setActivePage] = useState('Vue d’ensemble')
   const [search, setSearch] = useState('')
+  const [accountantEmail, setAccountantEmail] = useState('')
+const [invitationMessage, setInvitationMessage] = useState('')
+const [isSendingInvitation, setIsSendingInvitation] = useState(false)
+const handleSendInvitation = async () => {
+  if (!accountantEmail.trim()) {
+    setInvitationMessage("Saisis l'adresse e-mail du comptable.")
+    return
+  }
+
+  setIsSendingInvitation(true)
+setInvitationMessage('Envoi de l’invitation...')
+
+if (!supabase) {
+  setInvitationMessage("Connexion à Supabase indisponible.")
+  setIsSendingInvitation(false)
+  return
+}
+
+try {
+    const { data, error } = await supabase.functions.invoke(
+      'smooth-processor',
+      {
+        body: {
+          organization_id: activeOrganizationId,
+          email: accountantEmail.trim(),
+        },
+      }
+    )
+
+    if (error) throw error
+
+    setInvitationMessage(
+      data?.message ?? "Invitation envoyée."
+    )
+    setAccountantEmail('')
+  } catch (error) {
+    console.error(error)
+    setInvitationMessage("L'envoi de l'invitation a échoué.")
+  } finally {
+    setIsSendingInvitation(false)
+  }
+}
   const [invitationToken, setInvitationToken] = useState<string | null>(null)
   useEffect(() => {
   const params = new URLSearchParams(window.location.search)
@@ -2435,6 +2477,9 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
           <button className="nav-link" type="button" onClick={() => setActivePage('Paramètres')}>
             <Settings size={18} /><span>Paramètres</span>
           </button>
+                    <button className="nav-link" type="button" onClick={() => setActivePage('Cabinet comptable')}>
+            <Users size={18} /><span>Cabinet comptable</span>
+          </button>
           <button className="nav-link" type="button" onClick={() => setActivePage('Centre d’aide')}>
             <CircleHelp size={18} /><span>Centre d’aide</span>
           </button>
@@ -2928,9 +2973,48 @@ async function handleConvertQuoteToInvoice(quoteId: string) {
       {logoError && <p className="error-message">{logoError}</p>}
       {logoSuccess && <p className="success-message">{logoSuccess}</p>}
     </div>
+ 
+  </section>
+) : activePage === 'Cabinet comptable' ? (
+  <section className="settings-page">
+    <div className="page-heading">
+      <div>
+        <h2>Cabinet comptable</h2>
+        <p>Donne à ton cabinet un accès sécurisé à tes documents comptables.</p>
+      </div>
+    </div>
+
+    <div className="settings-card">
+      <h3>Inviter un comptable</h3>
+      <p className="muted-cell">
+        Tu pourras inviter ton cabinet comptable à consulter les documents de ton entreprise.
+      </p>
+      <div className="form-group">
+  <label htmlFor="accountant-email">Adresse e-mail du comptable</label>
+  <input
+  id="accountant-email"
+  type="email"
+  value={accountantEmail}
+  onChange={(event) => setAccountantEmail(event.target.value)}
+  placeholder="comptable@cabinet.fr"
+/>
+</div>
+<button
+  type="button"
+  className="primary-button"
+  onClick={handleSendInvitation}
+  disabled={isSendingInvitation || !activeOrganizationId}
+>
+  {isSendingInvitation ? 'Envoi en cours...' : 'Envoyer l’invitation'}
+</button>
+{invitationMessage && (
+  <p className="muted-cell">{invitationMessage}</p>
+)}
+    </div>
   </section>
 ) : (
   <>
+
     <section className="welcome-row">
                 <div>
                   <p className="eyebrow">ESPACE PROFESSIONNEL</p>
