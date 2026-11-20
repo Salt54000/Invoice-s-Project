@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import type { FormEvent } from "react";
 import type { InvoiceStatus, Invoice, Client } from './types'
 import { useInvoices } from './hooks/useInvoices'
+import { useClients } from './hooks/useClients'
 import type { User } from '@supabase/supabase-js'
 import {
   ArrowDownRight,
@@ -262,9 +263,17 @@ const [isSavingCompanyInfo, setIsSavingCompanyInfo] = useState(false)
 const [logoError, setLogoError] = useState<string | null>(null)
 const [logoSuccess, setLogoSuccess] = useState<string | null>(null)
 
-  const [clients, setClients] = useState<Client[]>([])
-  const [isLoadingClients, setIsLoadingClients] = useState(false)
-  const [clientError, setClientError] = useState<string | null>(null)
+  const {
+  clients,
+  setClients,
+  isLoadingClients,
+  clientError,
+  setClientError,
+} = useClients({
+  isAuthenticated: authStatus === 'authenticated',
+  userId: user?.id,
+  activeOrganizationId,
+})
   const {
   invoices,
   setInvoices,
@@ -819,49 +828,7 @@ console.log('Données renvoyées par Supabase :', data)
     setCompanyCountry(organization?.country ?? 'France')
   }, [organizations, activeOrganizationId])
   // Chargement des clients
-  useEffect(() => {
-    if (
-      !supabase ||
-      authStatus !== 'authenticated' ||
-      !user ||
-      !activeOrganizationId
-    ) {
-      setClients([])
-      setIsLoadingClients(false)
-      return
-    }
-
-    let isMounted = true
-
-    async function loadClients() {
-      if (!supabase) return
-
-      setIsLoadingClients(true)
-      setClientError(null)
-
-      try {
-        const { data, error } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('organization_id', activeOrganizationId)
-          .order('name', { ascending: true })
-
-        if (error) throw error
-        if (isMounted) setClients((data ?? []) as Client[])
-      } catch (error) {
-        console.error(error)
-        if (isMounted) setClientError('Impossible de charger les clients.')
-      } finally {
-        if (isMounted) setIsLoadingClients(false)
-      }
-    }
-
-    void loadClients()
-
-    return () => {
-      isMounted = false
-    }
-  }, [authStatus, user?.id, activeOrganizationId])
+ 
 
   // Chargement des factures depuis Supabase
   
