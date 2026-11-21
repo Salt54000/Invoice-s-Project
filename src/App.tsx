@@ -1,9 +1,16 @@
 
 import { useEffect, useState, useMemo } from "react";
 import type { FormEvent } from "react";
-import type { InvoiceStatus, Invoice, Client } from './types'
+import type {
+  InvoiceStatus,
+  Invoice,
+  Client,
+  QuoteStatus,
+  Quote,
+} from './types'
 import { useInvoices } from './hooks/useInvoices'
 import { useClients } from './hooks/useClients'
+import { useQuotes } from './hooks/useQuotes'
 import type { User } from '@supabase/supabase-js'
 import {
   ArrowDownRight,
@@ -51,28 +58,6 @@ type InvoiceLine = {
   unit_price: number
   vat_rate: number
 }
-type QuoteStatus =
-  | 'Brouillon'
-  | 'Envoyé'
-  | 'Accepté'
-  | 'Refusé'
-  | 'Expiré'
-  | 'Converti en facture'
-
-type Quote = {
-  id: string
-  quote_number: string
-  client_id: string
-  status: QuoteStatus
-  issue_date: string
-  valid_until: string | null
-  subtotal: number
-  tax_total: number
-  total: number
-  converted_invoice_id: string | null
-  created_at: string
-}
-
 type QuoteItem = {
   id: string
   quote_id: string
@@ -171,9 +156,6 @@ try {
     setInvitationToken(token)
   }
 }, [])
-const [quotes, setQuotes] = useState<Quote[]>([])
-const [isLoadingQuotes, setIsLoadingQuotes] = useState(false)
-const [quoteError, setQuoteError] = useState<string | null>(null)
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState('')
@@ -250,7 +232,20 @@ const [companyCountry, setCompanyCountry] = useState('France')
 const [companyInfoError, setCompanyInfoError] = useState('')
 const [companyInfoSuccess, setCompanyInfoSuccess] = useState('')
 const [isSavingCompanyInfo, setIsSavingCompanyInfo] = useState(false)
-  const [activeOrganizationId, setActiveOrganizationId] = useState('')
+  const [activeOrganizationId, setActiveOrganizationId] = useState(
+  () => localStorage.getItem('activeOrganizationId') ?? ''
+)
+  const {
+  quotes,
+  setQuotes,
+  isLoadingQuotes,
+  quoteError,
+  setQuoteError,
+} = useQuotes({
+  isAuthenticated: authStatus === 'authenticated',
+  userId: user?.id,
+  activeOrganizationId,
+})
   const activeOrganizationRole = organizations.find((org) => org.id === activeOrganizationId)?.role
   const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
   const [organizationError, setOrganizationError] = useState<string | null>(null)
@@ -793,11 +788,20 @@ console.log('Données renvoyées par Supabase :', data)
 
         setOrganizations(loadedOrganizations)
         
-        setActiveOrganizationId((current) =>
-          loadedOrganizations.some((org) => org.id === current)
-            ? current
-            : loadedOrganizations[0]?.id ?? '',
-        )
+        setActiveOrganizationId((current) => {
+  const savedOrganizationId = localStorage.getItem('activeOrganizationId')
+  const preferredId = current || savedOrganizationId || ''
+
+  const nextId = loadedOrganizations.some((org) => org.id === preferredId)
+    ? preferredId
+    : loadedOrganizations[0]?.id ?? ''
+
+  if (nextId) {
+    localStorage.setItem('activeOrganizationId', nextId)
+  }
+
+  return nextId
+})
       } catch (error) {
         if (!isMounted) return
         console.error(error)
@@ -834,75 +838,7 @@ console.log('Données renvoyées par Supabase :', data)
   
 
   // Chargement des devis depuis Supabase
-  useEffect(() => {
-    if (
-      !supabase ||
-      authStatus !== 'authenticated' ||
-      !user ||
-      !activeOrganizationId
-    ) {
-      setQuotes([])
-      setIsLoadingQuotes(false)
-      return
-    }
-
-    let isMounted = true
-
-    async function loadQuotes() {
-      if (!supabase) return
-
-      setIsLoadingQuotes(true)
-      setQuoteError(null)
-
-      try {
-        const { data, error } = await supabase
-          .from('quotes')
-          .select(
-            'id, quote_number, client_id, status, issue_date, valid_until, subtotal, tax_total, total, converted_invoice_id, created_at',
-          )
-          .eq('organization_id', activeOrganizationId)
-          .order('created_at', { ascending: false })
-
-        if (error) throw error
-
-        const loadedQuotes: Quote[] = (data ?? []).map((row) => ({
-          id: row.id,
-          quote_number: row.quote_number,
-          client_id: row.client_id,
-          status: row.status as QuoteStatus,
-          issue_date: row.issue_date,
-          valid_until: row.valid_until,
-          subtotal: Number(row.subtotal),
-          tax_total: Number(row.tax_total),
-          total: Number(row.total),
-          converted_invoice_id: row.converted_invoice_id,
-          created_at: row.created_at,
-        }))
-
-        if (isMounted) {
-          setQuotes(loadedQuotes)
-        }
-      } catch (error) {
-        console.error('Erreur de chargement des devis :', error)
-
-        if (isMounted) {
-          setQuoteError('Impossible de charger les devis. Réessayez.')
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingQuotes(false)
-        }
-      }
-    }
-
-    void loadQuotes()
-
-    return () => {
-      isMounted = false
-    }
-  }, [authStatus, user?.id, activeOrganizationId])
-
-  
+    
 const filteredInvoices = useMemo(() => {
   const query = search.trim().toLocaleLowerCase('fr')
 
@@ -2034,7 +1970,7 @@ async function handleSignUp() {
         const invalid = /invalid login credentials|invalid_credentials/i.test(
           error.message,
         )
-
+console.error('Erreur Supabase connexion :', error)
         setAuthMessage(
           invalid
             ? 'Adresse e-mail ou mot de passe incorrect.'
@@ -2235,6 +2171,7 @@ async function handleSignUp() {
                   type="button"
                   onClick={() => {
                     setActiveOrganizationId(organization.id)
+                    localStorage.setItem('activeOrganizationId', organization.id)
                     setIsWorkspaceMenuOpen(false)
                   }}
                   style={{

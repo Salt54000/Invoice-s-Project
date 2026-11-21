@@ -33,3 +33,24 @@ export type Client = {
   country: string
   created_at: string
 }
+export type QuoteStatus =
+  | 'Brouillon'
+  | 'Envoyé'
+  | 'Accepté'
+  | 'Refusé'
+  | 'Expiré'
+  | 'Converti en facture'
+
+export type Quote = {
+  id: string
+  quote_number: string
+  client_id: string
+  status: QuoteStatus
+  issue_date: string
+  valid_until: string | null
+  subtotal: number
+  tax_total: number
+  total: number
+  converted_invoice_id: string | null
+  created_at: string
+}

@@ -45,7 +45,9 @@ export function useInvoices({
           .eq('organization_id', activeOrganizationId)
           .order('created_at', { ascending: false })
 
-        if (error) throw error
+        if (error) {
+    throw error
+}
 
         const today = getTodayDate()
 
