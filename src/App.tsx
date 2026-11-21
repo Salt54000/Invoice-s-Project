@@ -14,6 +14,7 @@ import { useClients } from './hooks/useClients'
 import { useQuotes } from './hooks/useQuotes'
 import { useOrganizations } from './hooks/useOrganizations'
 import { useOrganizationLogo } from './hooks/useOrganizationLogo'
+import { useCompanyInfo } from './hooks/useCompanyInfo'
 import type { User } from '@supabase/supabase-js'
 import {
   ArrowDownRight,
@@ -214,10 +215,6 @@ const [companyAddress, setCompanyAddress] = useState('')
 const [companyPostalCode, setCompanyPostalCode] = useState('')
 const [companyCity, setCompanyCity] = useState('')
 const [companyCountry, setCompanyCountry] = useState('France')
-
-const [companyInfoError, setCompanyInfoError] = useState('')
-const [companyInfoSuccess, setCompanyInfoSuccess] = useState('')
-const [isSavingCompanyInfo, setIsSavingCompanyInfo] = useState(false)
     const [organizationRefresh, setOrganizationRefresh] = useState(0)
   const {
   organizations,
@@ -238,6 +235,18 @@ const {
   logoError,
   logoSuccess,
 } = useOrganizationLogo({
+  activeOrganizationId,
+  organizations,
+  setOrganizations,
+})
+const {
+  handleSaveCompanyInfo,
+  isSavingCompanyInfo,
+  companyInfoError,
+  setCompanyInfoError,
+  companyInfoSuccess,
+  setCompanyInfoSuccess,
+} = useCompanyInfo({
   activeOrganizationId,
   organizations,
   setOrganizations,
@@ -494,79 +503,6 @@ const quoteTotal = quoteSubtotal + quoteTaxTotal
     }
   }
   
-async function handleSaveCompanyInfo() {
-  if (!supabase || !activeOrganizationId) {
-    setCompanyInfoError('Aucune entreprise sélectionnée.')
-    return
-  }
-
-  const organization = organizations.find(
-    (org) => org.id === activeOrganizationId
-  )
-
-  if (!organization || !['owner', 'admin'].includes(organization.role)) {
-    setCompanyInfoError("Tu n'as pas les droits nécessaires pour modifier ces informations.")
-    return
-  }
-
-  setCompanyInfoError('')
-  setCompanyInfoSuccess('')
-  setIsSavingCompanyInfo(true)
-
-  try {
-    const { data, error } = await supabase
-      .from('organizations')
-      .update({
-        siret: companySiret.trim() || null,
-        siren: companySiren.trim() || null,
-        vat_number: companyVatNumber.trim() || null,
-        address: companyAddress.trim() || null,
-        postal_code: companyPostalCode.trim() || null,
-        city: companyCity.trim() || null,
-        country: companyCountry.trim() || null,
-      })
-      .eq('id', activeOrganizationId)
-      .select('id, address, postal_code, city, country')
-.maybeSingle()
-
-    if (error) throw error
-    if (!data) {
-  throw new Error('Aucune entreprise modifiée. Vérifiez les autorisations RLS.')
-}
-
-console.log('Données renvoyées par Supabase :', data)
-
-    setOrganizations((current) =>
-      current.map((org) =>
-        org.id === activeOrganizationId
-          ? {
-              ...org,
-              siret: companySiret.trim() || null,
-              siren: companySiren.trim() || null,
-              vat_number: companyVatNumber.trim() || null,
-              address: companyAddress.trim() || null,
-              postal_code: companyPostalCode.trim() || null,
-              city: companyCity.trim() || null,
-              country: companyCountry.trim() || null,
-            }
-          : org
-      )
-    )
-
-    setCompanyInfoSuccess('Informations de l’entreprise enregistrées avec succès.')
-  } catch (error) {
-  console.error("Erreur lors de l'enregistrement des informations :", error)
-
-  setCompanyInfoError(
-    error instanceof Error
-      ? error.message
-      : JSON.stringify(error)
-  )
-} finally {
-    setIsSavingCompanyInfo(false)
-  }
-}
-
 // Vérification de la session utilisateur
 
   useEffect(() => {
@@ -2543,7 +2479,17 @@ console.error('Erreur Supabase connexion :', error)
 {activeOrganizationRole !== 'accountant' && (
   <button
     type="button"
-    onClick={handleSaveCompanyInfo}
+    onClick={() =>
+  handleSaveCompanyInfo({
+    siret: companySiret,
+    siren: companySiren,
+    vatNumber: companyVatNumber,
+    address: companyAddress,
+    postalCode: companyPostalCode,
+    city: companyCity,
+    country: companyCountry,
+  })
+}
     disabled={isSavingCompanyInfo}
   >
     {isSavingCompanyInfo
