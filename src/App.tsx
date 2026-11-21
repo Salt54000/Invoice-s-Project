@@ -13,6 +13,7 @@ import { useInvoices } from './hooks/useInvoices'
 import { useClients } from './hooks/useClients'
 import { useQuotes } from './hooks/useQuotes'
 import { useOrganizations } from './hooks/useOrganizations'
+import { useOrganizationLogo } from './hooks/useOrganizationLogo'
 import type { User } from '@supabase/supabase-js'
 import {
   ArrowDownRight,
@@ -232,6 +233,16 @@ const [isSavingCompanyInfo, setIsSavingCompanyInfo] = useState(false)
   organizationRefresh,
 })
 const {
+  handleLogoUpload,
+  isUploadingLogo,
+  logoError,
+  logoSuccess,
+} = useOrganizationLogo({
+  activeOrganizationId,
+  organizations,
+  setOrganizations,
+})
+const {
   quotes,
   setQuotes,
   isLoadingQuotes,
@@ -249,10 +260,21 @@ const activeOrganizationRole = organizations.find(
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false)
   const [newOrganizationName, setNewOrganizationName] = useState('')
   const [isCreatingOrganization, setIsCreatingOrganization] = useState(false)
-    const [isUploadingLogo, setIsUploadingLogo] = useState(false)
-const [logoError, setLogoError] = useState<string | null>(null)
-const [logoSuccess, setLogoSuccess] = useState<string | null>(null)
+  useEffect(() => {
+  if (!isCreateOrganizationOpen) return
 
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      setIsCreateOrganizationOpen(false)
+    }
+  }
+
+  window.addEventListener('keydown', handleKeyDown)
+
+  return () => {
+    window.removeEventListener('keydown', handleKeyDown)
+  }
+}, [isCreateOrganizationOpen])
   const {
   clients,
   setClients,
@@ -471,99 +493,7 @@ const quoteTotal = quoteSubtotal + quoteTaxTotal
       setIsCreatingOrganization(false)
     }
   }
-const handleLogoUpload = async (
-  event: React.ChangeEvent<HTMLInputElement>
-) => {
-  if (!supabase) {
-    setLogoError('La connexion à Supabase est indisponible.')
-    return
-  }
-
-  const file = event.target.files?.[0]
-
-  if (!file || !activeOrganizationId) return
-
-  setLogoError(null)
-  setLogoSuccess(null)
-
-  // Seuls les utilisateurs owner ou admin peuvent modifier le logo
-  const organization = organizations.find(
-    (org) => org.id === activeOrganizationId
-  )
-
-  if (!organization || !['owner', 'admin'].includes(organization.role)) {
-    setLogoError("Tu n'as pas les droits nécessaires pour modifier ce logo.")
-    event.target.value = ''
-    return
-  }
-
-  const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
-
-  if (!allowedTypes.includes(file.type)) {
-    setLogoError('Format non accepté. Utilise PNG, JPG ou WebP.')
-    event.target.value = ''
-    return
-  }
-
-  if (file.size > 2 * 1024 * 1024) {
-    setLogoError('Le fichier ne doit pas dépasser 2 Mo.')
-    event.target.value = ''
-    return
-  }
-
-  const extension =
-    file.type === 'image/png'
-      ? 'png'
-      : file.type === 'image/webp'
-        ? 'webp'
-        : 'jpg'
-
-  const path = `${activeOrganizationId}/logo.${extension}`
-
-  setIsUploadingLogo(true)
-
-  try {
-    const { error: uploadError } = await supabase.storage
-      .from('company-logos')
-      .upload(path, file, {
-        upsert: true,
-        contentType: file.type,
-      })
-
-    if (uploadError) throw uploadError
-
-    const { data: publicUrlData } = supabase.storage
-      .from('company-logos')
-      .getPublicUrl(path)
-
-    const publicUrl = publicUrlData.publicUrl
-
-    const { error: updateError } = await supabase
-      .from('organizations')
-      .update({ logo_url: publicUrl })
-      .eq('id', activeOrganizationId)
-      
-    if (updateError) throw updateError
-
-    setOrganizations((current) =>
-      current.map((org) =>
-        org.id === activeOrganizationId
-          ? { ...org, logo_url: publicUrl }
-          : org
-      )
-    )
-
-    setLogoSuccess('Logo enregistré avec succès.')
-  } catch (error) {
-    console.error("Erreur lors de l'import du logo :", error)
-    setLogoError("Impossible d'enregistrer le logo. Vérifie les autorisations Supabase.")
-  } finally {
-    setIsUploadingLogo(false)
-    event.target.value = ''
-
-  }
-}
-
+  
 async function handleSaveCompanyInfo() {
   if (!supabase || !activeOrganizationId) {
     setCompanyInfoError('Aucune entreprise sélectionnée.')
@@ -2187,6 +2117,7 @@ console.error('Erreur Supabase connexion :', error)
                   <h2>Mes clients</h2>
                   <p>Les clients enregistrés pour cette entreprise.</p>
                 </div>
+                {activeOrganizationRole !== 'accountant' && (
                 <button
                   className="primary-button"
                   type="button"
@@ -2205,6 +2136,7 @@ console.error('Erreur Supabase connexion :', error)
                 >
                   <Plus size={18} /> Ajouter un client
                 </button>
+                )}
               </div>
 
               {clientError && <p role="alert">{clientError}</p>}
