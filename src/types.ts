@@ -54,3 +54,16 @@ export type Quote = {
   converted_invoice_id: string | null
   created_at: string
 }
+export type Organization = {
+  id: string
+  name: string
+  role: string
+  siret: string | null
+  siren: string | null
+  vat_number: string | null
+  address: string | null
+  postal_code: string | null
+  city: string | null
+  country: string | null
+  logo_url: string | null
+}

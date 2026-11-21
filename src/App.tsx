@@ -7,10 +7,12 @@ import type {
   Client,
   QuoteStatus,
   Quote,
+  Organization,
 } from './types'
 import { useInvoices } from './hooks/useInvoices'
 import { useClients } from './hooks/useClients'
 import { useQuotes } from './hooks/useQuotes'
+import { useOrganizations } from './hooks/useOrganizations'
 import type { User } from '@supabase/supabase-js'
 import {
   ArrowDownRight,
@@ -68,20 +70,6 @@ type QuoteItem = {
   total_ht: number
   total_ttc: number
 }
-type Organization = {
-  id: string
-  name: string
-  role: string
-  siret: string | null
-  siren: string | null
-  vat_number: string | null
-  address: string | null
-  postal_code: string | null
-  city: string | null
-  country: string | null
-  logo_url: string | null
-}
-
 type AuthStatus =
   | 'checking'
   | 'authenticated'
@@ -217,10 +205,7 @@ const [isCreatingQuote, setIsCreatingQuote] = useState(false)
   const [password, setPassword] = useState('')
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [isSigningUp, setIsSigningUp] = useState(false)
-  const [isSigningOut, setIsSigningOut] = useState(false)
-
-  const [organizations, setOrganizations] = useState<Organization[]>([])
-  
+  const [isSigningOut, setIsSigningOut] = useState(false) 
   const [companySiret, setCompanySiret] = useState('')
 const [companySiren, setCompanySiren] = useState('')
 const [companyVatNumber, setCompanyVatNumber] = useState('')
@@ -232,10 +217,21 @@ const [companyCountry, setCompanyCountry] = useState('France')
 const [companyInfoError, setCompanyInfoError] = useState('')
 const [companyInfoSuccess, setCompanyInfoSuccess] = useState('')
 const [isSavingCompanyInfo, setIsSavingCompanyInfo] = useState(false)
-  const [activeOrganizationId, setActiveOrganizationId] = useState(
-  () => localStorage.getItem('activeOrganizationId') ?? ''
-)
+    const [organizationRefresh, setOrganizationRefresh] = useState(0)
   const {
+  organizations,
+  setOrganizations,
+  activeOrganizationId,
+  setActiveOrganizationId,
+  isLoadingOrganizations,
+  organizationError,
+  setOrganizationError,
+} = useOrganizations({
+  isAuthenticated: authStatus === 'authenticated',
+  userId: user?.id,
+  organizationRefresh,
+})
+const {
   quotes,
   setQuotes,
   isLoadingQuotes,
@@ -246,15 +242,14 @@ const [isSavingCompanyInfo, setIsSavingCompanyInfo] = useState(false)
   userId: user?.id,
   activeOrganizationId,
 })
-  const activeOrganizationRole = organizations.find((org) => org.id === activeOrganizationId)?.role
-  const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
-  const [organizationError, setOrganizationError] = useState<string | null>(null)
+const activeOrganizationRole = organizations.find(
+  (org) => org.id === activeOrganizationId
+)?.role
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false)
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false)
   const [newOrganizationName, setNewOrganizationName] = useState('')
   const [isCreatingOrganization, setIsCreatingOrganization] = useState(false)
-  const [organizationRefresh, setOrganizationRefresh] = useState(0)
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false)
 const [logoError, setLogoError] = useState<string | null>(null)
 const [logoSuccess, setLogoSuccess] = useState<string | null>(null)
 
@@ -715,108 +710,7 @@ console.log('Données renvoyées par Supabase :', data)
   }, [authCheckAttempt])
 
   // Chargement des entreprises
-  useEffect(() => {
-    if (!supabase || authStatus !== 'authenticated' || !user) {
-      setOrganizations([])
-      setActiveOrganizationId('')
-      return
-    }
-
-    let isMounted = true
-
-    async function loadOrganizations() {
-      if (!supabase) return
-
-      setIsLoadingOrganizations(true)
-      setOrganizationError(null)
-
-      try {
-        const { data, error } = await supabase
-  .from('organization_members')
-  .select(`
-    organization_id,
-    role,
-    organizations!organization_members_organization_id_fkey (
-  id,
-  name,
-  siret,
-  siren,
-  vat_number,
-  address,
-  postal_code,
-  city,
-  country,
-  logo_url
-)
-  `)
-
-        if (error) throw error
-
-      const rows = (data ?? []) as unknown as Array<{
-  organization_id: string
-  role: string
-  organizations: {
-    id: string
-    name: string
-    siret: string | null
-    siren: string | null
-    vat_number: string | null
-    address: string | null
-    postal_code: string | null
-    city: string | null
-    country: string | null
-    logo_url: string | null
-  } | null
-}>
-        const loadedOrganizations = rows
-  .filter((row) => row.organizations !== null)
-  .map((row) => ({
-    id: row.organizations!.id,
-    name: row.organizations!.name,
-    role: row.role,
-    siret: row.organizations!.siret,
-    siren: row.organizations!.siren,
-    vat_number: row.organizations!.vat_number,
-    address: row.organizations!.address,
-    postal_code: row.organizations!.postal_code,
-    city: row.organizations!.city,
-    country: row.organizations!.country,
-    logo_url: row.organizations!.logo_url,
-  }))
-
-        if (!isMounted) return
-
-        setOrganizations(loadedOrganizations)
-        
-        setActiveOrganizationId((current) => {
-  const savedOrganizationId = localStorage.getItem('activeOrganizationId')
-  const preferredId = current || savedOrganizationId || ''
-
-  const nextId = loadedOrganizations.some((org) => org.id === preferredId)
-    ? preferredId
-    : loadedOrganizations[0]?.id ?? ''
-
-  if (nextId) {
-    localStorage.setItem('activeOrganizationId', nextId)
-  }
-
-  return nextId
-})
-      } catch (error) {
-        if (!isMounted) return
-        console.error(error)
-        setOrganizationError('Impossible de charger vos entreprises.')
-      } finally {
-        if (isMounted) setIsLoadingOrganizations(false)
-      }
-    }
-
-    void loadOrganizations()
-
-    return () => {
-      isMounted = false
-    }
-  }, [authStatus, user?.id, organizationRefresh])
+  
   // Chargement des informations légales de l'entreprise sélectionnée
   useEffect(() => {
     const organization = organizations.find(
