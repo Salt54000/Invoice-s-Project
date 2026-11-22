@@ -2740,6 +2740,22 @@ console.error('Erreur Supabase connexion :', error)
   </>
 )}
     </div>
+   </section>
+) : activePage === 'Aide & Support' ? (
+  <section className="settings-page">
+    <div className="page-heading">
+      <div>
+        <h2>Aide & Support</h2>
+        <p>Retrouve les réponses à tes questions et apprends à utiliser FacturPro.</p>
+      </div>
+    </div>
+
+    <div className="settings-card">
+      <h3>Comment pouvons-nous t'aider ?</h3>
+      <p className="muted-cell">
+        La documentation et les réponses aux questions fréquentes seront bientôt disponibles.
+      </p>
+    </div>
   </section>
 ) : (
   <>
