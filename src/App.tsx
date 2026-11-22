@@ -27,6 +27,7 @@ import {
   Clock3,
   FileText,
   LayoutDashboard,
+  Menu,
   Plus,
   Search,
   Settings,
@@ -266,6 +267,7 @@ const activeOrganizationRole = organizations.find(
   (org) => org.id === activeOrganizationId
 )?.role
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false)
   const [newOrganizationName, setNewOrganizationName] = useState('')
   const [isCreatingOrganization, setIsCreatingOrganization] = useState(false)
@@ -1998,16 +2000,37 @@ console.error('Erreur Supabase connexion :', error)
             </button>
           ))}
 
-          <span className="nav-heading nav-heading-spaced">PRÉFÉRENCES</span>
-          <button className="nav-link" type="button" onClick={() => setActivePage('Paramètres')}>
-            <Settings size={18} /><span>Paramètres</span>
-          </button>
-                    <button className="nav-link" type="button" onClick={() => setActivePage('Cabinet comptable')}>
-            <Users size={18} /><span>Cabinet comptable</span>
-          </button>
-          <button className="nav-link" type="button" onClick={() => setActivePage('Centre d’aide')}>
-            <CircleHelp size={18} /><span>Centre d’aide</span>
-          </button>
+          
+<button
+  className={`nav-link ${activePage === 'Paramètres' ? 'active' : ''}`}
+  type="button"
+  onClick={() => setActivePage('Paramètres')}
+  aria-current={activePage === 'Paramètres' ? 'page' : undefined}
+>
+  <Settings size={18} aria-hidden="true" />
+  <span>Paramètres</span>
+</button>
+
+<button
+  className={`nav-link ${activePage === 'Cabinet comptable' ? 'active' : ''}`}
+  type="button"
+  onClick={() => setActivePage('Cabinet comptable')}
+  aria-current={activePage === 'Cabinet comptable' ? 'page' : undefined}
+>
+  <Users size={18} aria-hidden="true" />
+  <span>Cabinet comptable</span>
+</button>
+
+<button
+  className={`nav-link ${activePage === 'Centre d’aide' ? 'active' : ''}`}
+  type="button"
+  onClick={() => setActivePage('Centre d’aide')}
+  aria-current={activePage === 'Centre d’aide' ? 'page' : undefined}
+>
+  <CircleHelp size={18} aria-hidden="true" />
+  <span>Centre d’aide</span>
+</button>
+
         </nav>
 
         <div className="sidebar-bottom">
@@ -2032,10 +2055,89 @@ console.error('Erreur Supabase connexion :', error)
           </div>
         </div>
       </aside>
+      {isMobileMenuOpen && (
+  <div className="mobile-menu-overlay">
+    <nav className="mobile-menu" aria-label="Navigation mobile">
+      <div className="mobile-menu-header">
+        <strong>Navigation</strong>
+        <button
+          type="button"
+          className="mobile-menu-close"
+          aria-label="Fermer le menu"
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
+          <X size={20} />
+        </button>
+      </div>
 
+      {navigation.map(({ label, icon: Icon }) => (
+        <button
+          key={label}
+          type="button"
+          className={`nav-link ${activePage === label ? 'active' : ''}`}
+          onClick={() => {
+            setActivePage(label)
+            setIsMobileMenuOpen(false)
+          }}
+        >
+          <Icon size={18} aria-hidden="true" />
+          <span>{label}</span>
+          {label === 'Factures' && <span className="nav-count">{invoices.length}</span>}
+          {label === 'Clients' && <span className="nav-count">{clients.length}</span>}
+        </button>
+      ))}
+
+      <button
+        type="button"
+        className={`nav-link ${activePage === 'Paramètres' ? 'active' : ''}`}
+        onClick={() => {
+          setActivePage('Paramètres')
+          setIsMobileMenuOpen(false)
+        }}
+      >
+        <Settings size={18} />
+        <span>Paramètres</span>
+      </button>
+
+      <button
+        type="button"
+        className={`nav-link ${activePage === 'Cabinet comptable' ? 'active' : ''}`}
+        onClick={() => {
+          setActivePage('Cabinet comptable')
+          setIsMobileMenuOpen(false)
+        }}
+      >
+        <Users size={18} />
+        <span>Cabinet comptable</span>
+      </button>
+
+      <button
+        type="button"
+        className={`nav-link ${activePage === 'Centre d’aide' ? 'active' : ''}`}
+        onClick={() => {
+          setActivePage('Centre d’aide')
+          setIsMobileMenuOpen(false)
+        }}
+      >
+        <CircleHelp size={18} />
+        <span>Centre d’aide</span>
+      </button>
+    </nav>
+  </div>
+)}
       <main className="main-content">
         <header className="topbar">
-          <div className="breadcrumb">FacturPro <span>/</span> {activePage}</div>
+  <button
+    className="mobile-menu-button"
+    type="button"
+    aria-label="Ouvrir le menu de navigation"
+    aria-expanded={isMobileMenuOpen}
+    onClick={() => setIsMobileMenuOpen((open) => !open)}
+  >
+    <Menu size={22} />
+  </button>
+
+  <div className="breadcrumb">FacturPro <span>/</span> {activePage}</div>
           <div className="topbar-actions">
             <span className="sync-status"><span className="online-dot" /> Supabase connecté</span>
             <button className="plain-icon-button notification-button" type="button" aria-label="Notifications">
@@ -2079,9 +2181,38 @@ console.error('Erreur Supabase connexion :', error)
 
               {isLoadingClients ? (
                 <p>Chargement des clients…</p>
-              ) : clients.length === 0 ? (
-                <p className="empty-row">Aucun client enregistré pour cette entreprise.</p>
-              ) : (
+              
+) : clients.length === 0 ? (
+  <div className="clients-empty">
+    <span className="clients-empty-icon">
+      <Users size={22} />
+    </span>
+    <strong>Aucun client pour le moment</strong>
+    <p>
+      Ajoutez votre premier client pour pouvoir créer
+      vos factures et vos devis plus facilement.
+    </p>
+    {activeOrganizationRole !== 'accountant' && (
+      <button
+        className="text-link"
+        type="button"
+        onClick={() => {
+          setEditingClient(null)
+          setNewClientName('')
+          setNewClientEmail('')
+          setNewClientPhone('')
+          setNewClientAddress('')
+          setNewClientPostalCode('')
+          setNewClientCity('')
+          setClientError(null)
+          setIsCreateClientOpen(true)
+        }}
+      >
+        Ajouter un client <ArrowRight size={15} />
+      </button>
+    )}
+  </div>
+) : (
                 <div className="table-scroll">
         
 <table>
@@ -2286,7 +2417,35 @@ console.error('Erreur Supabase connexion :', error)
             </thead>
 
             <tbody>
-              {quotes.map((quote) => {
+  {quotes.length === 0 ? (
+    <tr>
+      <td colSpan={6}>
+        <div className="quotes-empty">
+          <span className="quotes-empty-icon">
+            <FileText size={22} />
+          </span>
+          <strong>Aucun devis pour le moment</strong>
+          <p>
+            Créez votre premier devis pour présenter vos prestations
+            et vos tarifs à vos clients.
+          </p>
+          {activeOrganizationRole !== 'accountant' && (
+            <button
+              className="text-link"
+              type="button"
+              onClick={() => {
+                setQuoteError(null)
+                setIsCreateQuoteOpen(true)
+              }}
+            >
+              Créer un devis <ArrowRight size={15} />
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  ) : (
+    quotes.map((quote) => {
                 const linkedClient = clients.find(
                   (client) => client.id === quote.client_id
                 )
@@ -2362,15 +2521,8 @@ console.error('Erreur Supabase connexion :', error)
 
                   </tr>
                 )
-              })}
-
-              {quotes.length === 0 && (
-                <tr>
-                  <td className="empty-row" colSpan={6}>
-                    Aucun devis enregistré pour cette entreprise.
-                  </td>
-                </tr>
-              )}
+                            })
+            )}
             </tbody>
           </table>
         </div>
@@ -2782,23 +2934,42 @@ console.error('Erreur Supabase connexion :', error)
                     <span>Total facturé</span>
                   </div>
 
-                  <div className="bar-chart" role="img" aria-label="Graphique des montants facturés sur les six derniers mois">
-                    {monthlyData.map((month) => (
-                      <div className="chart-column" key={month.key}>
-                        <div className="chart-bar-area">
-                          {month.amount > 0 && (
-                            <span className="chart-tooltip">{formatCurrency(month.amount)}</span>
-                          )}
-                          <div
-                            className={`chart-bar ${month.amount > 0 ? 'has-value' : ''}`}
-                            style={{ height: `${month.height}%` }}
-                          />
-                        </div>
-                        <span className="chart-month">{month.label}</span>
-                      </div>
-                    ))}
-                  </div>
-
+                  
+{monthlyData.some((month) => month.amount > 0) ? (
+  <div
+    className="bar-chart"
+    role="img"
+    aria-label="Graphique des montants facturés sur les six derniers mois"
+  >
+    {monthlyData.map((month) => (
+      <div className="chart-column" key={month.key}>
+        <div className="chart-bar-area">
+          {month.amount > 0 && (
+            <span className="chart-tooltip">
+              {formatCurrency(month.amount)}
+            </span>
+          )}
+          <div
+            className={`chart-bar ${month.amount > 0 ? 'has-value' : ''}`}
+            style={{ height: `${month.height}%` }}
+          />
+        </div>
+        <span className="chart-month">{month.label}</span>
+      </div>
+    ))}
+  </div>
+) : (
+  <div className="chart-empty" role="status">
+    <span className="chart-empty-icon">
+      <FileText size={24} />
+    </span>
+    <strong>Aucune facturation pour le moment</strong>
+    <p>
+      Créez votre première facture pour suivre l'évolution
+      de votre activité ici.
+    </p>
+  </div>
+)}
                   <p className="chart-footnote">
                     Les brouillons ne sont pas inclus dans ce graphique.
                   </p>
@@ -2914,9 +3085,30 @@ console.error('Erreur Supabase connexion :', error)
                             </td>
                           </tr>
                         ))}
-                        {invoices.length === 0 && (
-                          <tr><td className="empty-row" colSpan={5}>Aucune facture enregistrée pour le moment.</td></tr>
-                        )}
+                        
+{invoices.length === 0 && (
+  <tr>
+    <td colSpan={5}>
+      <div className="invoices-empty">
+        <span className="invoices-empty-icon">
+          <FileText size={22} />
+        </span>
+        <strong>Aucune facture pour le moment</strong>
+        <p>
+          Créez votre première facture pour commencer à suivre
+          votre activité.
+        </p>
+        <button
+          className="text-link"
+          type="button"
+          onClick={() => setActivePage('Factures')}
+        >
+          Créer une facture <ArrowRight size={15} />
+        </button>
+      </div>
+    </td>
+  </tr>
+)}
                       </tbody>
                     </table>
                   </div>
