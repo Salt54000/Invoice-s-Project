@@ -2022,13 +2022,13 @@ console.error('Erreur Supabase connexion :', error)
 </button>
 
 <button
-  className={`nav-link ${activePage === 'Centre d’aide' ? 'active' : ''}`}
+  className={`nav-link ${activePage === 'Aide & Support' ? 'active' : ''}`}
   type="button"
-  onClick={() => setActivePage('Centre d’aide')}
-  aria-current={activePage === 'Centre d’aide' ? 'page' : undefined}
+  onClick={() => setActivePage('Aide & Support')}
+  aria-current={activePage === 'Aide & Support' ? 'page' : undefined}
 >
   <CircleHelp size={18} aria-hidden="true" />
-  <span>Centre d’aide</span>
+  <span>Aide & Support</span>
 </button>
 
         </nav>
@@ -2038,7 +2038,7 @@ console.error('Erreur Supabase connexion :', error)
             <span className="help-icon"><CircleHelp size={17} /></span>
             <strong>Un peu d’aide ?</strong>
             <p>Retrouvez les réponses à vos questions sur la facturation.</p>
-            <button type="button" className="help-link" onClick={() => setActivePage('Centre d’aide')}>
+            <button type="button" className="help-link" onClick={() => setActivePage('Aide & Support')}>
               Consulter le centre d’aide <ArrowRight size={14} />
             </button>
           </div>
@@ -2113,14 +2113,14 @@ console.error('Erreur Supabase connexion :', error)
 
       <button
         type="button"
-        className={`nav-link ${activePage === 'Centre d’aide' ? 'active' : ''}`}
+        className={`nav-link ${activePage === 'Aide & Support' ? 'active' : ''}`}
         onClick={() => {
-          setActivePage('Centre d’aide')
+          setActivePage('Aide & Support')
           setIsMobileMenuOpen(false)
         }}
       >
         <CircleHelp size={18} />
-        <span>Centre d’aide</span>
+        <span>Aide & Support</span>
       </button>
     </nav>
   </div>
