@@ -25,6 +25,8 @@ import {
   ChevronDown,
   CircleHelp,
   Clock3,
+   Building2,
+  FileCheck,
   FileText,
   LayoutDashboard,
   Menu,
@@ -95,6 +97,7 @@ const formatCurrency = (amount: number) =>
 
 function App() {
   const [activePage, setActivePage] = useState('Vue d’ensemble')
+  const [helpSearch, setHelpSearch] = useState('')
   const [search, setSearch] = useState('')
   const [accountantEmail, setAccountantEmail] = useState('')
 const [invitationMessage, setInvitationMessage] = useState('')
@@ -2741,7 +2744,8 @@ console.error('Erreur Supabase connexion :', error)
 )}
     </div>
    </section>
-) : activePage === 'Aide & Support' ? (
+) 
+: activePage === 'Aide & Support' ? (
   <section className="settings-page">
     <div className="page-heading">
       <div>
@@ -2750,16 +2754,90 @@ console.error('Erreur Supabase connexion :', error)
       </div>
     </div>
 
-    <div className="settings-card">
-      <h3>Comment pouvons-nous t'aider ?</h3>
-      <p className="muted-cell">
-        La documentation et les réponses aux questions fréquentes seront bientôt disponibles.
-      </p>
+    <div className="settings-card help-center">
+      <div className="help-intro">
+        <h3>Comment pouvons-nous t'aider ?</h3>
+        <p className="muted-cell">
+          Recherche une réponse ou consulte nos questions fréquentes.
+        </p>
+      </div>
+
+      <div className="help-search">
+        <Search size={20} aria-hidden="true" />
+        <input
+          type="search"
+          placeholder="Rechercher une question..."
+          aria-label="Rechercher dans le centre d'aide"
+          value={helpSearch}
+          onChange={(event) => setHelpSearch(event.target.value)}
+        />
+      </div>
+
+      <div className="help-categories">
+        <h3>Questions fréquentes</h3>
+
+        {[
+          {
+            title: 'Facturation',
+            description: 'Créer, modifier et télécharger tes factures.',
+            icon: FileText,
+          },
+          {
+            title: 'Gestion des clients',
+            description: 'Ajouter et gérer les informations de tes clients.',
+            icon: Users,
+          },
+          {
+            title: 'Devis',
+            description: 'Créer des devis et les convertir en factures.',
+            icon: FileCheck,
+          },
+          {
+            title: 'Entreprise et paramètres',
+            description: 'Configurer tes informations légales et ton logo.',
+            icon: Building2,
+          },
+        ]
+          .filter((category) =>
+            `${category.title} ${category.description}`
+              .toLowerCase()
+              .includes(helpSearch.trim().toLowerCase())
+          )
+          .map((category) => {
+            const Icon = category.icon
+
+            return (
+              <div className="help-category" key={category.title}>
+                <Icon size={20} />
+                <div>
+                  <strong>{category.title}</strong>
+                  <p>{category.description}</p>
+                </div>
+              </div>
+            )
+          })}
+          {helpSearch.trim() !== '' &&
+  ![
+    'Facturation',
+    'Gestion des clients',
+    'Devis',
+    'Entreprise et paramètres',
+    'Créer, modifier et télécharger tes factures.',
+    'Ajouter et gérer les informations de tes clients.',
+    'Créer des devis et les convertir en factures.',
+    'Configurer tes informations légales et ton logo.',
+  ].some((item) =>
+    item.toLowerCase().includes(helpSearch.trim().toLowerCase())
+  ) && (
+    <p className="muted-cell">
+      Aucun résultat trouvé pour « {helpSearch} ».
+    </p>
+  )}
+      </div>
     </div>
   </section>
 ) : (
   <>
-
     <section className="welcome-row">
                 <div>
                   <p className="eyebrow">ESPACE PROFESSIONNEL</p>
